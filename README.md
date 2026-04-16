@@ -20,7 +20,7 @@ key-differentiators: [extends Presidio with 30 domain-specific recognizers, 3-la
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://github.com/OgenticAI/ogentic-shield#install)
 [![Tests](https://img.shields.io/badge/tests-198%20passed-brightgreen.svg)](https://github.com/OgenticAI/ogentic-shield#development)
 
-Detect attorney-client privilege, HIPAA PHI, financial MNPI, and 50+ PII types **before content reaches an AI model**. Extends Microsoft Presidio with 30 domain-specific recognizers, a context-aware rules engine, and profile-driven scoring.
+Detect attorney-client privilege, HIPAA PHI, financial MNPI, and 50+ PII types **before content reaches an AI model**. Extends [Microsoft Presidio](https://github.com/microsoft/presidio) with 30 domain-specific recognizers, a context-aware rules engine, and profile-driven scoring.
 
 - **Does it detect legal privilege?** &mdash; Yes. 10 recognizers for attorney-client privilege markers, counsel communications, work product doctrine, settlement terms, case numbers, law firm names, litigation holds, court filings, Bates numbers, and executive titles ([shield-legal](#shield-legal--attorney-client-privilege))
 - **Does it detect clinical PHI?** &mdash; Yes. 10 recognizers for patient names, DOB, ICD-10 codes, clinical risk flags (suicidal ideation, self-harm), session markers, insurance IDs, 50+ psychiatric medications, provider names, SSNs, and psychotherapy note indicators ([shield-therapy](#shield-therapy--hipaa-phi--clinical-risk))
@@ -57,7 +57,7 @@ On February 10, 2026, *US v. Heppner* (S.D.N.Y.) established that sending conten
 
 **30+ million US professionals** use AI daily. 71% of law firms have no AI policy. 43% of therapists have entered patient data into public AI. There is no open-source tool that answers a simple question before text reaches a model: *does this content contain something that should never leave this device?*
 
-Microsoft Presidio handles general PII well (names, SSNs, credit cards). It knows nothing about attorney-client privilege markers, psychotherapy note indicators, MNPI signals, or work product doctrine. `ogentic-shield` fills that gap.
+[Microsoft Presidio](https://github.com/microsoft/presidio) handles general PII well (names, SSNs, credit cards). It knows nothing about attorney-client privilege markers, psychotherapy note indicators, MNPI signals, or work product doctrine. `ogentic-shield` fills that gap.
 
 ---
 
@@ -106,7 +106,7 @@ All `ogentic-*` projects are Apache 2.0 licensed.
 | **HIPAA violations** when therapists enter session notes into AI tools | Detect PHI, psychotherapy note indicators, diagnosis codes, and clinical risk flags | `shield-therapy` |
 | **SEC/FINRA violations** when financial teams process MNPI through cloud AI | Detect insider markers, deal terms, fund information, and confidential designations | `shield-finance` |
 | **No routing signal** &mdash; apps don't know whether to use local or cloud AI | Score-based routing suggestions: `LOCAL_ONLY`, `REDACT_CLOUD`, or `CLOUD_OK` | All |
-| **Presidio doesn't understand privilege** &mdash; only general PII | 30 domain-specific recognizers that extend Presidio as first-class citizens | All |
+| **[Presidio](https://github.com/microsoft/presidio) doesn't understand privilege** &mdash; only general PII | 30 domain-specific recognizers that extend Presidio as first-class citizens | All |
 
 ---
 
@@ -115,7 +115,7 @@ All `ogentic-*` projects are Apache 2.0 licensed.
 | Capability | Supported | Notes |
 |------------|-----------|-------|
 | **Detection** | | |
-| General PII (names, SSN, email, phone, credit card) | Yes | Via Presidio built-in recognizers (50+ types) |
+| General PII (names, SSN, email, phone, credit card) | Yes | Via [Presidio](https://github.com/microsoft/presidio) built-in recognizers (50+ types) |
 | Attorney-client privilege markers | Yes | `shield-legal` &mdash; 10 recognizers |
 | Work product doctrine detection | Yes | `shield-legal` |
 | Law firm name recognition (AmLaw 200) | Yes | `shield-legal` |
@@ -130,7 +130,7 @@ All `ogentic-*` projects are Apache 2.0 licensed.
 | Insider trading markers and blackout periods | Yes | `shield-finance` |
 | Institution names (50+ banks/PE firms) | Yes | `shield-finance` |
 | **Pipeline** | | |
-| Layer 1: Regex + NER (&lt;50ms) | Yes | Presidio engine with custom recognizers |
+| Layer 1: Regex + NER (&lt;50ms) | Yes | [Presidio](https://github.com/microsoft/presidio) engine with custom recognizers |
 | Layer 2: Context-aware rules engine (&lt;10ms) | Yes | Confidence boosting via co-occurrence |
 | Layer 3: Local LLM classification | Stub | v0.2 &mdash; Ollama integration |
 | Overlap resolution (longest span, highest confidence) | Yes | With category-group priority tiebreaker |
@@ -158,7 +158,7 @@ All `ogentic-*` projects are Apache 2.0 licensed.
 
 ## Get Started in 30 Seconds
 
-**Requires**: Python 3.10+ and a spaCy language model
+**Requires**: Python 3.10+ and a [spaCy](https://spacy.io/) language model (used by [Presidio](https://github.com/microsoft/presidio) for NER)
 
 ```bash
 pip install ogentic-shield
@@ -261,7 +261,7 @@ Input Text
 +-------------------------------------+
 | Layer 1: REGEX + NER  (< 50ms)      |
 |                                      |
-| Presidio built-in recognizers (PII)  |
+| Presidio built-in PII recognizers    |
 | + 30 custom domain recognizers       |
 | Deduplicates overlapping spans       |
 +------------------+-------------------+
@@ -443,11 +443,11 @@ This means `ogentic-shield` works in air-gapped environments out of the box. No 
 
 ### What is ogentic-shield?
 
-`ogentic-shield` is an open-source Python library that classifies text content for regulatory sensitivity across legal, clinical, and financial domains. It extends Microsoft Presidio with 30 domain-specific recognizers that detect attorney-client privilege, HIPAA PHI, and financial MNPI &mdash; categories that Presidio doesn't cover.
+`ogentic-shield` is an open-source Python library that classifies text content for regulatory sensitivity across legal, clinical, and financial domains. It extends [Microsoft Presidio](https://github.com/microsoft/presidio) with 30 domain-specific recognizers that detect attorney-client privilege, HIPAA PHI, and financial MNPI &mdash; categories that Presidio doesn't cover.
 
 ### Why not just use Presidio directly?
 
-Presidio is excellent for general PII (names, SSNs, credit cards, phone numbers). But it has no concept of legal privilege, psychotherapy note indicators, or MNPI markers. `ogentic-shield` extends Presidio &mdash; all 50+ built-in Presidio recognizers are still available, plus 30 domain-specific ones.
+[Presidio](https://github.com/microsoft/presidio) is excellent for general PII (names, SSNs, credit cards, phone numbers). But it has no concept of legal privilege, psychotherapy note indicators, or MNPI markers. `ogentic-shield` extends Presidio &mdash; all 50+ built-in Presidio recognizers are still available, plus 30 domain-specific ones.
 
 ### Does it work without an internet connection?
 
@@ -555,7 +555,7 @@ ogentic-shield/
 │   ├── pipeline.py            # Orchestrates layers 1 → 2 → 3
 │   ├── scoring.py             # Score calculation + routing suggestion
 │   ├── config.py              # YAML config loading
-│   ├── recognizers/           # 30 Presidio-compatible recognizers
+│   ├── recognizers/           # 30 Presidio-compatible recognizers (extend EntityRecognizer)
 │   │   ├── legal.py           # 10 legal recognizers
 │   │   ├── therapy.py         # 10 therapy recognizers
 │   │   └── finance.py         # 10 finance recognizers
