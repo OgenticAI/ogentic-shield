@@ -1,14 +1,53 @@
-<p align="center">
-  <strong>ogentic-shield</strong><br>
-  <em>Regulatory sensitivity detection for AI applications</em>
-</p>
+<!-- AI-AGENT-SUMMARY
+name: ogentic-shield
+category: regulatory sensitivity detection, privilege classification, PII/PHI/MNPI detection
+license: Apache-2.0
+solves: [detect attorney-client privilege before text reaches AI, detect HIPAA PHI in clinical content, detect financial MNPI/insider information, classify regulatory sensitivity with scoring and routing suggestions]
+input: text content (strings, files, stdin)
+output: JSON (entities with confidence, score, sensitivity level, routing suggestion), table, summary
+sdk: Python
+requirements: Python 3.10+, spaCy en_core_web_lg model
+pricing: open-source (Apache 2.0), no enterprise tier
+key-differentiators: [extends Presidio with 30 domain-specific recognizers, 3-layer pipeline (regex/NER + rules + LLM stub), composable profiles for legal/therapy/finance, fully offline — zero network calls, advisory routing suggestions, 198 passing tests]
+-->
 
-<p align="center">
-  <a href="https://github.com/OgenticAI/ogentic-shield/actions"><img src="https://img.shields.io/github/actions/workflow/status/OgenticAI/ogentic-shield/ci.yml?branch=main&label=tests" alt="Tests"></a>
-  <a href="https://pypi.org/project/ogentic-shield/"><img src="https://img.shields.io/pypi/v/ogentic-shield?color=blue" alt="PyPI"></a>
-  <a href="https://github.com/OgenticAI/ogentic-shield/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green" alt="License"></a>
-  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
-</p>
+# ogentic-shield
+
+**Regulatory sensitivity detection for AI applications. Open-source.**
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/OgenticAI/ogentic-shield/blob/main/LICENSE)
+[![PyPI version](https://img.shields.io/pypi/v/ogentic-shield.svg)](https://pypi.org/project/ogentic-shield/)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://github.com/OgenticAI/ogentic-shield#install)
+[![Tests](https://img.shields.io/badge/tests-198%20passed-brightgreen.svg)](https://github.com/OgenticAI/ogentic-shield#development)
+
+Detect attorney-client privilege, HIPAA PHI, financial MNPI, and 50+ PII types **before content reaches an AI model**. Extends Microsoft Presidio with 30 domain-specific recognizers, a context-aware rules engine, and profile-driven scoring.
+
+- **Does it detect legal privilege?** &mdash; Yes. 10 recognizers for attorney-client privilege markers, counsel communications, work product doctrine, settlement terms, case numbers, law firm names, litigation holds, court filings, Bates numbers, and executive titles ([shield-legal](#shield-legal--attorney-client-privilege))
+- **Does it detect clinical PHI?** &mdash; Yes. 10 recognizers for patient names, DOB, ICD-10 codes, clinical risk flags (suicidal ideation, self-harm), session markers, insurance IDs, 50+ psychiatric medications, provider names, SSNs, and psychotherapy note indicators ([shield-therapy](#shield-therapy--hipaa-phi--clinical-risk))
+- **Does it detect financial MNPI?** &mdash; Yes. 10 recognizers for MNPI markers, M&A activity, deal values, leverage ratios, fund information, institution names, covenants, distribution restrictions, insider markers, and carry terms ([shield-finance](#shield-finance--mnpi--deal-terms))
+- **Does it work offline?** &mdash; Yes. Layers 1 and 2 make zero network calls. No telemetry, no cloud APIs. Works in air-gapped environments ([offline by default](#offline-by-default))
+- **How do I use it?** &mdash; `pip install ogentic-shield`, analyze in 3 lines. Python library, CLI tool, composable profiles ([quick start](#get-started-in-30-seconds))
+
+---
+
+## Table of Contents
+
+- [Why This Exists](#why-this-exists)
+- [About OgenticAI](#about-ogenticai)
+- [What Problems Does This Solve?](#what-problems-does-this-solve)
+- [Capability Matrix](#capability-matrix)
+- [Get Started in 30 Seconds](#get-started-in-30-seconds)
+- [Shield Profiles](#shield-profiles)
+- [Detection Pipeline](#detection-pipeline)
+- [CLI](#cli)
+- [Python API](#python-api)
+- [Configuration](#configuration)
+- [Offline by Default](#offline-by-default)
+- [Frequently Asked Questions](#frequently-asked-questions)
+- [Roadmap](#roadmap)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -24,13 +63,13 @@ Microsoft Presidio handles general PII well (names, SSNs, credit cards). It know
 
 ## About OgenticAI
 
-[OgenticAI](https://ogentic.ai) is building **trust infrastructure for regulated industries** &mdash; the tools that make AI safe for professionals who can't afford to get it wrong.
+[OgenticAI](https://ogenticai.com) is building **trust infrastructure for regulated industries** &mdash; the tools that make AI safe for professionals who can't afford to get it wrong: lawyers, therapists, financial teams, and healthcare providers.
 
 `ogentic-shield` is the first release in a series of open-source projects that together form the foundation for privacy-first AI:
 
 | Project | Purpose | Status |
 |---------|---------|--------|
-| **`ogentic-shield`** | Detect privileged, clinical, and financial sensitivity in text | **v0.1.0 &mdash; Available now** |
+| **[`ogentic-shield`](https://github.com/OgenticAI/ogentic-shield)** | Detect privileged, clinical, and financial sensitivity in text | **v0.1.0 &mdash; Available now** |
 | `ogentic-audit` | Cryptographic, tamper-evident audit trails for AI usage | Coming soon |
 | `ogentic-router` | Privacy-aware LLM routing (sensitive &rarr; local, safe &rarr; cloud) | Coming soon |
 | `ogentic-redact` | Structure-aware document redaction for legal proceedings | Planned |
@@ -38,55 +77,93 @@ Microsoft Presidio handles general PII well (names, SSNs, credit cards). It know
 | `ogentic-legal-mcp` | MCP servers for legal document intelligence and research | Planned |
 | `ogentic-legal-bench` | Open benchmarks for legal AI trustworthiness | Planned |
 
-These projects are designed to compose. `ogentic-shield` classifies content. `ogentic-router` uses that classification to decide where to send it. `ogentic-audit` logs every decision. `ogentic-redact` strips what shouldn't leave. Together they form a complete open-source stack for privilege-protected AI &mdash; and the foundation for [Privy](https://ogentic.ai), OgenticAI's commercial product for regulated professionals.
+These projects are designed to compose:
+
+```
+ogentic-shield ──> ogentic-router ──> ogentic-audit
+  (classify)         (route)            (log)
+      |                  |                  |
+      v                  v                  v
+ogentic-redact     ogentic-vault     ogentic-legal-bench
+  (redact docs)    (knowledge DB)      (benchmarks)
+      |                  |
+      v                  v
+  ogentic-legal-mcp
+  (MCP servers for legal workflows)
+```
+
+Together they form a complete open-source stack for privilege-protected AI &mdash; and the foundation for [Privy](https://ogenticai.com), OgenticAI's commercial product for regulated professionals.
 
 All `ogentic-*` projects are Apache 2.0 licensed.
 
 ---
 
-## What It Does
+## What Problems Does This Solve?
 
-`ogentic-shield` extends Microsoft Presidio with **30 domain-specific recognizers** across three regulated professions, then layers a configurable rules engine on top:
-
-```
-Input Text
-    |
-    v
-[ Layer 1: Regex + NER ]     <50ms
-  Presidio built-in PII (50+ types)
-  + 30 custom recognizers
-    |
-    v
-[ Layer 2: Rules Engine ]     <10ms
-  Context-aware confidence boosting
-  Co-occurrence detection
-    |
-    v
-[ Layer 3: Local LLM ]        opt-in, v0.2
-  Ollama classification
-  for ambiguous content
-    |
-    v
-Score (0-100) + Sensitivity Level + Routing Suggestion
-```
-
-The output is a score, a sensitivity level, and an advisory routing suggestion &mdash; **not an enforcement decision**. Your application decides what to do with it.
+| Problem | Solution | Profile |
+|---------|----------|---------|
+| **Attorney-client privilege waived** when legal content reaches public AI (*Heppner*) | Detect privilege markers, counsel communications, and work product before routing | `shield-legal` |
+| **HIPAA violations** when therapists enter session notes into AI tools | Detect PHI, psychotherapy note indicators, diagnosis codes, and clinical risk flags | `shield-therapy` |
+| **SEC/FINRA violations** when financial teams process MNPI through cloud AI | Detect insider markers, deal terms, fund information, and confidential designations | `shield-finance` |
+| **No routing signal** &mdash; apps don't know whether to use local or cloud AI | Score-based routing suggestions: `LOCAL_ONLY`, `REDACT_CLOUD`, or `CLOUD_OK` | All |
+| **Presidio doesn't understand privilege** &mdash; only general PII | 30 domain-specific recognizers that extend Presidio as first-class citizens | All |
 
 ---
 
-## Install
+## Capability Matrix
+
+| Capability | Supported | Notes |
+|------------|-----------|-------|
+| **Detection** | | |
+| General PII (names, SSN, email, phone, credit card) | Yes | Via Presidio built-in recognizers (50+ types) |
+| Attorney-client privilege markers | Yes | `shield-legal` &mdash; 10 recognizers |
+| Work product doctrine detection | Yes | `shield-legal` |
+| Law firm name recognition (AmLaw 200) | Yes | `shield-legal` |
+| Case numbers and Bates stamps | Yes | `shield-legal` |
+| HIPAA Protected Health Information | Yes | `shield-therapy` &mdash; 10 recognizers |
+| Psychotherapy note indicators | Yes | `shield-therapy` |
+| Clinical risk flags (SI, self-harm) | Yes | `shield-therapy` |
+| Psychiatric medication detection (50+ drugs) | Yes | `shield-therapy` |
+| ICD-10 mental health diagnosis codes | Yes | `shield-therapy` |
+| Material non-public information (MNPI) | Yes | `shield-finance` &mdash; 10 recognizers |
+| M&A activity and deal values | Yes | `shield-finance` |
+| Insider trading markers and blackout periods | Yes | `shield-finance` |
+| Institution names (50+ banks/PE firms) | Yes | `shield-finance` |
+| **Pipeline** | | |
+| Layer 1: Regex + NER (&lt;50ms) | Yes | Presidio engine with custom recognizers |
+| Layer 2: Context-aware rules engine (&lt;10ms) | Yes | Confidence boosting via co-occurrence |
+| Layer 3: Local LLM classification | Stub | v0.2 &mdash; Ollama integration |
+| Overlap resolution (longest span, highest confidence) | Yes | With category-group priority tiebreaker |
+| **Scoring & Routing** | | |
+| Weighted sensitivity scoring (0&ndash;100) | Yes | Profile-driven, composable weights |
+| Sensitivity levels (NONE/LOW/MEDIUM/HIGH/CRITICAL) | Yes | Score-based thresholds |
+| Routing suggestions (LOCAL_ONLY/REDACT_CLOUD/CLOUD_OK) | Yes | Advisory, not enforcement |
+| **Interfaces** | | |
+| Python library | Yes | `from ogentic_shield import Shield` |
+| CLI tool | Yes | `ogentic-shield analyze`, `ogentic-shield profiles` |
+| JSON / table / summary output | Yes | Pipe-friendly JSON, Rich tables, one-line summary |
+| MCP server | Planned | v0.2 |
+| HTTP API (FastAPI) | Planned | v0.2 |
+| **Privacy** | | |
+| Fully offline (zero network calls) | Yes | Layers 1 and 2 |
+| No telemetry or analytics | Yes | By design |
+| Air-gapped environment support | Yes | No internet required |
+| **Limitations** | | |
+| Document processing (PDF/DOCX) | No | Use with [OpenDataLoader PDF](https://github.com/opendataloader-project/opendataloader-pdf) for extraction, then pass text to shield |
+| Redaction | No | Classification only &mdash; redaction is `ogentic-redact` |
+| Routing enforcement | No | Advisory suggestions &mdash; enforcement is `ogentic-router` |
+| GPU required | No | CPU only |
+
+---
+
+## Get Started in 30 Seconds
+
+**Requires**: Python 3.10+ and a spaCy language model
 
 ```bash
 pip install ogentic-shield
-```
-
-Presidio requires a spaCy language model:
-
-```bash
 python -m spacy download en_core_web_lg
 ```
-
-## Quick Start
 
 ```python
 from ogentic_shield import Shield
@@ -104,21 +181,62 @@ print(result.routing_suggestion)  # LOCAL_ONLY
 print(result.entities[0].category)  # COUNSEL_COMMUNICATION
 ```
 
-## Profiles
+---
+
+## Shield Profiles
 
 Each profile adds a set of recognizers, rules, and scoring weights for a specific domain. Profiles are **composable** &mdash; load multiple for cross-domain work (e.g., a law firm handling healthcare litigation).
 
 ### `shield-legal` &mdash; Attorney-Client Privilege
 
-Detects privilege markers, counsel communications, work product doctrine, settlement terms, case numbers, law firm names (AmLaw 200), litigation holds, court filings, Bates numbers, and executive names.
+| Recognizer | Entity Type | Example Match |
+|------------|-------------|---------------|
+| Counsel Communication | `COUNSEL_COMMUNICATION` | "outside counsel", "legal counsel", "in-house counsel" |
+| Privilege Marker | `PRIVILEGE_MARKER` | "privileged and confidential", "attorney-client privilege" |
+| Work Product | `WORK_PRODUCT` | "attorney work product", "prepared in anticipation of litigation" |
+| Settlement Terms | `SETTLEMENT_TERMS` | "settle for $4.2M", "settlement agreement" |
+| Case Number | `CASE_NUMBER` | "25-cr-00503", "24-cv-1234" |
+| Law Firm Name | `LAW_FIRM_NAME` | Davis Polk, Kirkland & Ellis, Skadden (40+ AmLaw firms) |
+| Litigation Marker | `LITIGATION_MARKER` | "litigation hold", "legal hold", "preservation notice" |
+| Court Filing | `COURT_FILING` | "motion to dismiss", "summary judgment", "deposition" |
+| Bates Number | `BATES_NUMBER` | "BATES 000123", "DOC-2026-0042" |
+| Executive Name | `EXECUTIVE_NAME` | "CEO Williams", "General Counsel Martinez" |
+
+**Scoring weights**: PRIVILEGE: 30, PII: 15, CONFIDENTIAL: 10
 
 ### `shield-therapy` &mdash; HIPAA PHI & Clinical Risk
 
-Detects patient names, dates of birth, ICD-10 diagnosis codes, clinical risk flags (suicidal ideation, self-harm), session markers, insurance IDs, psychiatric medications (50+ drugs), provider names, SSNs, and psychotherapy note indicators.
+| Recognizer | Entity Type | Example Match |
+|------------|-------------|---------------|
+| Patient Name | `PATIENT_NAME` | "Patient: Jane D.", "Client: Mary J." |
+| Date of Birth | `DATE_OF_BIRTH` | "DOB: 03/15/1988", "Date of Birth: 1988-03-15" |
+| Diagnosis Code | `DIAGNOSIS_CODE` | "F33.1", "F41.0", "DSM-5 criteria" |
+| Clinical Risk Flag | `CLINICAL_RISK_FLAG` | "suicidal ideation", "self-harm", "homicidal ideation" |
+| Session Marker | `SESSION_MARKER` | "Session 12", "intake assessment", "treatment plan" |
+| Insurance ID | `INSURANCE_ID` | "Insurance ID: UHC-8847291", "Member ID" |
+| Medication | `MEDICATION` | Sertraline, Lexapro, Zoloft, Abilify (50+ drugs, brand and generic) |
+| Provider Name | `PROVIDER_NAME` | "Therapist Sarah", "Johnson, LCSW" |
+| SSN | `SSN` | "123-45-6789", "SSN: 987-65-4321" |
+| Psychotherapy Note Marker | `PSYCHOTHERAPY_NOTE_MARKER` | "process notes", "countertransference", "therapeutic alliance" |
+
+**Scoring weights**: PHI: 28, PII: 15, CONFIDENTIAL: 10
 
 ### `shield-finance` &mdash; MNPI & Deal Terms
 
-Detects MNPI markers, M&A activity, deal values (per-share, $M/$B), leverage ratios, fund information (LP/GP, co-invest), institution names (50+ banks/PE firms), financial covenants, distribution restrictions, insider markers, and carried interest terms.
+| Recognizer | Entity Type | Example Match |
+|------------|-------------|---------------|
+| MNPI Marker | `MNPI_MARKER` | "MNPI", "MATERIAL NON-PUBLIC", "CONFIDENTIAL" |
+| M&A Activity | `MA_ACTIVITY` | "acquiring", "merger agreement", "takeover bid" |
+| Deal Value | `DEAL_VALUE` | "$47/share", "$2.1 billion", "$200M commitment" |
+| Leverage Ratio | `LEVERAGE_RATIO` | "5.2x EBITDA", "3.5x revenue" |
+| Fund Information | `FUND_INFORMATION` | "Fund III", "LP allocation", "co-investment" |
+| Institution Name | `INSTITUTION_NAME` | Goldman Sachs, Blackstone, KKR (50+ banks/PE firms) |
+| Financial Terms | `FINANCIAL_TERMS` | "covenant", "DSCR", "term sheet", "waterfall" |
+| Distribution Restriction | `DISTRIBUTION_RESTRICTION` | "do not distribute", "internal use only" |
+| Insider Marker | `INSIDER_MARKER` | "insider trading", "blackout period", "restricted list" |
+| Carry Terms | `CARRY_TERMS` | "20% carry", "hurdle rate", "preferred return" |
+
+**Scoring weights**: MNPI: 30, PII: 12, CONFIDENTIAL: 10
 
 ### Scoring & Routing
 
@@ -134,32 +252,78 @@ Privilege (`PRIVILEGE`) or MNPI (`MNPI`) entities always trigger `LOCAL_ONLY`, r
 
 ---
 
+## Detection Pipeline
+
+```
+Input Text
+    |
+    v
++-------------------------------------+
+| Layer 1: REGEX + NER  (< 50ms)      |
+|                                      |
+| Presidio built-in recognizers (PII)  |
+| + 30 custom domain recognizers       |
+| Deduplicates overlapping spans       |
++------------------+-------------------+
+                   |
+                   v
++-------------------------------------+
+| Layer 2: RULES ENGINE  (< 10ms)     |
+|                                      |
+| Context-aware confidence boosting    |
+| Co-occurrence detection within       |
+| configurable character windows       |
++------------------+-------------------+
+                   |
+                   v
++-------------------------------------+
+| Layer 3: LLM (opt-in, v0.2)         |
+|                                      |
+| Local Ollama only — never cloud      |
+| Only for ambiguous score range       |
++------------------+-------------------+
+                   |
+                   v
+  Score (0-100) + Level + Routing
+```
+
+**Overlap resolution** (when multiple recognizers match the same span):
+1. Longer span wins over shorter span
+2. If same length, higher confidence wins
+3. If same confidence: PRIVILEGE > PHI > MNPI > PII > CONFIDENTIAL
+
+---
+
 ## CLI
 
 ```bash
-# Analyze text
+# Analyze text directly
 ogentic-shield analyze "privileged and confidential" \
   --profiles shield-legal --output json
 
-# Analyze a file
+# Analyze from file
 ogentic-shield analyze --file memo.txt \
   --profiles shield-legal shield-finance
 
 # Pipe from stdin
 cat brief.txt | ogentic-shield analyze --profiles shield-legal
 
-# Output formats: json, table, summary
-ogentic-shield analyze "..." --output table
-ogentic-shield analyze "..." --output summary
+# Output formats
+ogentic-shield analyze "..." --output json      # structured JSON
+ogentic-shield analyze "..." --output table     # Rich colored table
+ogentic-shield analyze "..." --output summary   # one-line summary
 
 # List available profiles
 ogentic-shield profiles list
 
 # Show profile details
 ogentic-shield profiles show shield-legal
+
+# Version
+ogentic-shield --version
 ```
 
-### Example Output
+### Output Examples
 
 **Summary** (`--output summary`):
 
@@ -171,17 +335,23 @@ CRITICAL (94) | LOCAL_ONLY | 6 entities | COUNSEL_COMMUNICATION (0.93) | 12.4ms
 
 ```json
 {
+  "text_hash": "sha256:a1b2c3d4e5f6...",
   "score": 94,
   "sensitivity_level": "CRITICAL",
   "routing_suggestion": "LOCAL_ONLY",
   "entity_count": 6,
+  "processing_time_ms": 12.4,
+  "layers_invoked": ["REGEX", "NER"],
+  "profiles_active": ["shield-legal"],
   "entities": [
     {
       "text": "outside counsel",
       "category": "COUNSEL_COMMUNICATION",
       "category_group": "PRIVILEGE",
       "confidence": 0.93,
-      "detection_layer": "REGEX"
+      "detection_layer": "REGEX",
+      "start": 33,
+      "end": 48
     }
   ]
 }
@@ -194,31 +364,41 @@ CRITICAL (94) | LOCAL_ONLY | 6 entities | COUNSEL_COMMUNICATION (0.93) | 12.4ms
 ```python
 from ogentic_shield import Shield, DetectionLayer
 
-# Multiple profiles
+# Initialize with one or more profiles
 shield = Shield(profiles=["shield-legal", "shield-therapy"])
 
-# Full analysis with options
+# Analyze text
+result = shield.analyze("Per our conversation with outside counsel...")
+
+# Analyze with options
 result = shield.analyze(
     text,
-    profiles=["shield-legal"],           # override for this call
-    layers=[DetectionLayer.REGEX, DetectionLayer.NER],  # skip rules
-    min_confidence=0.7,                  # filter low-confidence
+    profiles=["shield-legal"],           # override profiles for this call
+    layers=[DetectionLayer.REGEX, DetectionLayer.NER],  # skip rules layer
+    min_confidence=0.7,                  # filter low-confidence entities
 )
 
 # Inspect results
+print(result.score)                # 0-100
+print(result.sensitivity_level)    # NONE/LOW/MEDIUM/HIGH/CRITICAL
+print(result.routing_suggestion)   # LOCAL_ONLY/REDACT_CLOUD/CLOUD_OK
+print(result.entity_count)         # number of detected entities
+print(result.processing_time_ms)   # analysis time
+
 for entity in result.entities:
     print(f"{entity.text} -> {entity.category} ({entity.confidence:.2f})")
 
-# Available profiles
-Shield.list_profiles()
-Shield.get_profile("shield-legal")
+# List and inspect profiles
+profiles = Shield.list_profiles()
+profile = Shield.get_profile("shield-legal")
+print(profile.supported_entities)
 ```
 
 ---
 
 ## Configuration
 
-Create an `ogentic-shield.yaml` in your project root:
+Create an `ogentic-shield.yaml` in your project root to customize defaults:
 
 ```yaml
 version: "0.1"
@@ -232,12 +412,21 @@ layers:
   ner: true
   rules: true
   llm:
-    enabled: false         # opt-in only; requires ollama
+    enabled: false              # opt-in only; requires ollama
+    provider: ollama
     model: llama3.1:8b
     endpoint: http://localhost:11434
+    timeout_ms: 5000
+    ambiguous_score_range: [20, 60]
 
 scoring:
   min_confidence: 0.5
+  dedup_strategy: longest_highest
+
+output:
+  include_text_hash: true
+  include_processing_time: true
+  max_entities: 50
 ```
 
 ---
@@ -246,7 +435,88 @@ scoring:
 
 Layers 1 and 2 make **zero network calls**. No telemetry, no analytics, no cloud APIs. Everything runs on your machine. Layer 3 (LLM, coming in v0.2) calls localhost Ollama only &mdash; never an external endpoint.
 
-This means `ogentic-shield` works in air-gapped environments out of the box.
+This means `ogentic-shield` works in air-gapped environments out of the box. No internet connection required for installation beyond the initial `pip install` and spaCy model download.
+
+---
+
+## Frequently Asked Questions
+
+### What is ogentic-shield?
+
+`ogentic-shield` is an open-source Python library that classifies text content for regulatory sensitivity across legal, clinical, and financial domains. It extends Microsoft Presidio with 30 domain-specific recognizers that detect attorney-client privilege, HIPAA PHI, and financial MNPI &mdash; categories that Presidio doesn't cover.
+
+### Why not just use Presidio directly?
+
+Presidio is excellent for general PII (names, SSNs, credit cards, phone numbers). But it has no concept of legal privilege, psychotherapy note indicators, or MNPI markers. `ogentic-shield` extends Presidio &mdash; all 50+ built-in Presidio recognizers are still available, plus 30 domain-specific ones.
+
+### Does it work without an internet connection?
+
+Yes. Layers 1 and 2 are fully offline. No API calls, no data transmission. Documents never leave your machine. This is critical for regulated environments where data residency matters.
+
+### How fast is it?
+
+Layer 1 (regex + NER) completes in under 50ms for text under 5,000 characters. Layer 2 (rules) adds under 10ms. The full pipeline without LLM runs in under 100ms. No GPU required.
+
+### Does it enforce routing decisions?
+
+No. `ogentic-shield` provides an **advisory** routing suggestion (`LOCAL_ONLY`, `REDACT_CLOUD`, or `CLOUD_OK`). Your application decides what to do with it. Enforcement is the job of `ogentic-router`, a separate project in the ecosystem.
+
+### Can I create custom profiles?
+
+Yes. Profiles can be defined as Python modules (for complex recognizer logic) or YAML files (for simple pattern definitions). See `CLAUDE.md` for the profile pattern and `PRD.md` Section 7.2 for the YAML format.
+
+### How do I use this with PDFs?
+
+`ogentic-shield` analyzes text, not files. For PDF processing, use [OpenDataLoader PDF](https://github.com/opendataloader-project/opendataloader-pdf) to extract text, then pass it to `ogentic-shield`:
+
+```python
+import opendataloader_pdf
+from ogentic_shield import Shield
+
+# Extract text from PDF
+opendataloader_pdf.convert(input_path=["contract.pdf"], output_dir="output/", format="text")
+
+# Analyze extracted text
+shield = Shield(profiles=["shield-legal"])
+with open("output/contract.txt") as f:
+    result = shield.analyze(f.read())
+```
+
+### Can I combine multiple profiles?
+
+Yes. Profiles are composable. Load `shield-legal` and `shield-finance` together for a law firm advising on M&A, or `shield-legal` and `shield-therapy` for healthcare litigation:
+
+```python
+shield = Shield(profiles=["shield-legal", "shield-finance"])
+```
+
+When profiles have conflicting weights for the same category group, the higher weight wins.
+
+### What Python versions are supported?
+
+Python 3.10 and above. Tested on 3.10, 3.11, 3.12, and 3.13.
+
+### Is there a Docker image?
+
+Not yet in v0.1. A Docker image is planned for v0.2 alongside the HTTP API server.
+
+---
+
+## Roadmap
+
+| Feature | Version | Status |
+|---------|---------|--------|
+| 30 recognizers (legal, therapy, finance) | v0.1.0 | Shipped |
+| 3-layer detection pipeline (regex/NER + rules + LLM stub) | v0.1.0 | Shipped |
+| Configurable scoring with profile-driven weights | v0.1.0 | Shipped |
+| CLI with JSON, table, and summary output | v0.1.0 | Shipped |
+| 198 passing tests | v0.1.0 | Shipped |
+| Layer 3: Local LLM classification via Ollama | v0.2.0 | Planned |
+| MCP server mode (`ogentic-shield serve --mcp`) | v0.2.0 | Planned |
+| HTTP API server (`ogentic-shield serve --http`) | v0.2.0 | Planned |
+| Custom profile loading from YAML | v0.2.0 | Planned |
+| Docker image | v0.2.0 | Planned |
+| Additional shield profiles (healthcare, accounting) | v0.3.0+ | Planned |
 
 ---
 
@@ -262,49 +532,87 @@ python -m spacy download en_core_web_lg
 # Run tests (198 tests)
 pytest tests/ -v
 
+# Run tests with coverage
+pytest tests/ --cov=ogentic_shield --cov-report=term-missing
+
 # Lint
 ruff check src/ tests/
 
 # Type check
 mypy src/ogentic_shield/
+
+# Run all quality checks (CI equivalent)
+ruff check src/ tests/ && mypy src/ogentic_shield/ && pytest tests/ -v --cov=ogentic_shield
 ```
+
+### Project Structure
+
+```
+ogentic-shield/
+├── src/ogentic_shield/
+│   ├── shield.py              # Main entry point (Shield class)
+│   ├── models.py              # Dataclasses, enums, exceptions
+│   ├── pipeline.py            # Orchestrates layers 1 → 2 → 3
+│   ├── scoring.py             # Score calculation + routing suggestion
+│   ├── config.py              # YAML config loading
+│   ├── recognizers/           # 30 Presidio-compatible recognizers
+│   │   ├── legal.py           # 10 legal recognizers
+│   │   ├── therapy.py         # 10 therapy recognizers
+│   │   └── finance.py         # 10 finance recognizers
+│   ├── profiles/              # Shield profiles (recognizers + rules + weights)
+│   │   ├── legal.py           # shield-legal
+│   │   ├── therapy.py         # shield-therapy
+│   │   └── finance.py         # shield-finance
+│   ├── layers/                # Detection layers
+│   │   ├── regex_ner.py       # Layer 1: Presidio + custom recognizers
+│   │   ├── rules.py           # Layer 2: Context-aware rules engine
+│   │   └── llm.py             # Layer 3: LLM stub (v0.2)
+│   └── cli/                   # Click CLI
+├── tests/                     # 198 tests
+├── CLAUDE.md                  # Architecture decisions & code conventions
+└── PRD.md                     # Full product specification
+```
+
+---
+
+## Documentation
+
+- [README](./README.md) &mdash; This file. Install, usage, profiles, FAQ
+- [PRD.md](./PRD.md) &mdash; Full product requirements document (data models, API contract, detection pipeline, configuration, testing requirements)
+- [CLAUDE.md](./CLAUDE.md) &mdash; Architecture decisions, code patterns, naming conventions, build order
+- [CONTRIBUTING.md](./CONTRIBUTING.md) &mdash; How to contribute recognizers, tests, and domain expertise
+- [LICENSE](./LICENSE) &mdash; Apache License 2.0
 
 ---
 
 ## Contributing
 
-We welcome contributions &mdash; especially new recognizer patterns, test cases for edge cases, and domain expertise in legal, clinical, or financial regulation.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
-1. Fork the repo
-2. Create a branch (`feat/`, `fix/`, `test/`)
-3. Follow the patterns in `CLAUDE.md` (recognizer structure, test structure, naming conventions)
-4. Ensure `ruff check` and `pytest` pass
-5. Open a PR
+The most impactful contributions:
 
-See `PRD.md` for the full product specification and `CLAUDE.md` for architecture decisions and code conventions.
+- **New recognizer patterns** for legal, clinical, or financial sensitivity
+- **Test cases** for edge cases and false positives/negatives
+- **Domain expertise** from lawyers, therapists, financial professionals, or compliance officers
+- **Bug reports** with example text and expected vs. actual output
+- **New shield profiles** for healthcare, accounting, government, or other regulated domains
 
----
+### Quick Contribution Guide
 
-## Roadmap
-
-### v0.1.0 (current)
-- 30 recognizers across legal, therapy, and finance
-- 3-layer detection pipeline (regex/NER + rules + LLM stub)
-- Configurable scoring with profile-driven weights
-- CLI with JSON, table, and summary output
-- 198 passing tests
-
-### v0.2.0 (planned)
-- Layer 3: Local LLM classification via Ollama
-- MCP server mode (`ogentic-shield serve --mcp`)
-- HTTP API server (`ogentic-shield serve --http`)
-- Custom profile loading from YAML
-- Expanded recognizer patterns based on community feedback
+1. **Fork** the repository
+2. **Create a branch** (`feat/`, `fix/`, `test/`, `docs/`)
+3. **Follow the patterns** in [CLAUDE.md](./CLAUDE.md) (recognizer structure, test structure, naming conventions)
+4. **Run checks**: `ruff check src/ tests/ && pytest tests/ -v`
+5. **Open a PR** against `main`
 
 ---
 
 ## License
 
-Apache 2.0 &mdash; see [LICENSE](LICENSE).
+[Apache License 2.0](https://github.com/OgenticAI/ogentic-shield/blob/main/LICENSE)
 
-Built by [OgenticAI](https://ogentic.ai). Trust is not a policy &mdash; it's infrastructure.
+---
+
+Built by [OgenticAI](https://ogenticai.com). Trust is not a policy &mdash; it's infrastructure.
+
+**Found this useful?** Give us a star to help others discover ogentic-shield.
