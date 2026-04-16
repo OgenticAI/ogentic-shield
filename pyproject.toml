@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ogentic-shield"
+version = "0.1.0"
+description = "Regulatory sensitivity detection for legal privilege, clinical PHI, and financial MNPI"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [
+    { name = "David Oladeji", email = "david@ogentic.ai" },
+]
+keywords = ["privacy", "pii", "hipaa", "privilege", "mnpi", "presidio", "compliance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
+dependencies = [
+    "presidio-analyzer>=2.2",
+    "presidio-anonymizer>=2.2",
+    "pyyaml>=6.0",
+    "click>=8.0",
+    "rich>=13.0",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+server = ["fastapi>=0.100", "uvicorn>=0.20"]
+mcp = ["mcp>=1.0"]
+llm = ["ollama>=0.3"]
+all = ["ogentic-shield[server,mcp,llm]"]
+dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.4", "mypy>=1.10"]
+
+[project.scripts]
+ogentic-shield = "ogentic_shield.cli.main:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ogentic_shield"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true

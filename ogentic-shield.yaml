@@ -1,0 +1,28 @@
+version: "0.1"
+
+profiles:
+  - shield-legal
+  - shield-therapy
+
+layers:
+  regex: true
+  ner: true
+  rules: true
+  llm:
+    enabled: false
+    provider: ollama
+    model: llama3.1:8b
+    endpoint: http://localhost:11434
+    timeout_ms: 5000
+    ambiguous_score_range: [20, 60]
+
+scoring:
+  min_confidence: 0.5
+  dedup_strategy: longest_highest
+
+output:
+  include_text_hash: true
+  include_processing_time: true
+  max_entities: 50
+
+custom_profiles_dir: ./profiles
