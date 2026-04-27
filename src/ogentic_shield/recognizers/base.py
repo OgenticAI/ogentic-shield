@@ -1,6 +1,8 @@
 """Base recognizer extending Presidio's EntityRecognizer."""
 
-from presidio_analyzer import PatternRecognizer
+from typing import Any
+
+from presidio_analyzer import Pattern, PatternRecognizer
 
 
 class ShieldPatternRecognizer(PatternRecognizer):
@@ -10,10 +12,10 @@ class ShieldPatternRecognizer(PatternRecognizer):
     support and a consistent initialization pattern.
     """
 
-    PATTERNS = []
-    CONTEXT_WORDS = []
+    PATTERNS: list[Pattern] = []
+    CONTEXT_WORDS: list[str] = []
 
-    def __init__(self, supported_entity: str, **kwargs):
+    def __init__(self, supported_entity: str, **kwargs: Any) -> None:
         super().__init__(
             supported_entity=supported_entity,
             patterns=self.PATTERNS,

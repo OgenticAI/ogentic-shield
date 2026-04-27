@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -82,7 +83,11 @@ class ShieldProfile:
     description: str
     recognizers: list
     rules: list[Rule]
-    scoring_weights: dict[CategoryGroup, float]
+    # `Mapping` is covariant in the value type, so int literals like
+    # {CategoryGroup.PRIVILEGE: 30} satisfy `Mapping[K, float]`. Using
+    # invariant `dict` here would force every profile to spell out
+    # `30.0` instead of `30`.
+    scoring_weights: Mapping[CategoryGroup, float]
     supported_entities: list[str]
 
 

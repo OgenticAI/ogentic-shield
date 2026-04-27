@@ -6,7 +6,7 @@ import logging
 import re
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]  # PyYAML stubs not pinned.
 
 from ogentic_shield.models import CategoryGroup, Rule, ShieldProfile
 

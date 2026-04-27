@@ -22,7 +22,7 @@ def run_layer3(
     which is out of scope for the initial release.
     """
     try:
-        import ollama  # noqa: F401
+        import ollama  # type: ignore[import-not-found]  # noqa: F401  # optional [llm] extra
     except ImportError:
         raise NotImplementedError(
             "LLM layer requires the 'ollama' package. "

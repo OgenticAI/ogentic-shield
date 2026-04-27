@@ -1,0 +1,74 @@
+# ─── OGE-53 — CI: lint + typecheck + tests on every push and PR ─────────────
+# Quality gates per CLAUDE.md §7:
+#   - ruff lint clean
+#   - mypy clean
+#   - pytest passes
+#   - coverage ≥85% (advisory until v0.1.0; enforce with --cov-fail-under after)
+#
+# Why pinned Python: presidio-analyzer + spaCy en_core_web_lg lock to the
+# CPython releases they've been wheel-tested against. We pin to 3.12 (per
+# the build plan); pyproject.toml allows 3.10+, so a matrix could expand
+# later, but a single supported version is enough for v0.1.0.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs on the same branch when a new commit lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint + typecheck + tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install ogentic-shield + dev deps
+        # Editable install with the [dev] extras: pytest + ruff + mypy.
+        run: pip install -e ".[dev]"
+
+      - name: Download spaCy en_core_web_lg model
+        # Required by Layer 1 (presidio NER recognizer). Cached by the
+        # spaCy step above when pip's cache key matches.
+        run: python -m spacy download en_core_web_lg
+
+      - name: Ruff lint
+        run: ruff check src/ tests/
+
+      - name: Mypy typecheck
+        run: mypy src/ogentic_shield/
+
+      - name: Pytest with coverage
+        # --cov-report=xml so a future codecov / coverage-badge step can
+        # consume it; --cov-report=term-missing for human-readable PR logs.
+        run: |
+          pytest tests/ -v \
+            --cov=ogentic_shield \
+            --cov-report=xml \
+            --cov-report=term-missing
+
+      - name: Upload coverage XML
+        # Stored as a build artefact so reviewers can drill in even
+        # without a third-party coverage service. 7-day retention.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 7

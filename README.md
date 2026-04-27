@@ -15,6 +15,7 @@ key-differentiators: [extends Presidio with 30 domain-specific recognizers, 3-la
 
 **Regulatory sensitivity detection for AI applications. Open-source.**
 
+[![CI](https://github.com/OgenticAI/ogentic-shield/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/OgenticAI/ogentic-shield/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/OgenticAI/ogentic-shield/blob/main/LICENSE)
 [![PyPI version](https://img.shields.io/pypi/v/ogentic-shield.svg)](https://pypi.org/project/ogentic-shield/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://github.com/OgenticAI/ogentic-shield#install)
@@ -545,6 +546,43 @@ mypy src/ogentic_shield/
 ruff check src/ tests/ && mypy src/ogentic_shield/ && pytest tests/ -v --cov=ogentic_shield
 ```
 
+### Examples
+
+Three runnable examples under [`examples/`](examples/) demonstrate the
+Python API:
+
+- [`examples/basic_usage.py`](examples/basic_usage.py) — Simplest end-to-end:
+  initialise `Shield`, analyse text, print the result.
+- [`examples/custom_profile.py`](examples/custom_profile.py) — Define rules
+  in YAML, load with `load_profile_from_yaml`, register, analyse.
+- [`examples/multi_profile.py`](examples/multi_profile.py) — Compose
+  `shield-legal` + `shield-finance` so a single message gets evaluated
+  against both regulatory frames simultaneously.
+
+```bash
+python examples/basic_usage.py
+python examples/custom_profile.py
+python examples/multi_profile.py
+```
+
+### Benchmarks
+
+Labelled JSONL datasets + a runner that reports per-recognizer
+precision/recall/F1, per-profile aggregates, and timing. See
+[`benchmarks/README.md`](benchmarks/README.md) for the schema and current
+state vs PRD targets.
+
+```bash
+# Run every dataset
+python benchmarks/run_benchmarks.py
+
+# Run a single dataset, write JSON report
+python benchmarks/run_benchmarks.py --dataset legal_privilege --json out.json
+
+# Strict mode — exit non-zero if any precision / performance target is missed
+python benchmarks/run_benchmarks.py --strict
+```
+
 ### Project Structure
 
 ```
@@ -569,6 +607,9 @@ ogentic-shield/
 │   │   └── llm.py             # Layer 3: LLM stub (v0.2)
 │   └── cli/                   # Click CLI
 ├── tests/                     # 198 tests
+├── examples/                  # Runnable Python API examples (basic, custom, multi-profile)
+├── benchmarks/                # Labelled JSONL datasets + precision/recall/F1 runner
+├── .github/workflows/ci.yml   # Lint + typecheck + tests on every push & PR
 ├── CLAUDE.md                  # Architecture decisions & code conventions
 └── PRD.md                     # Full product specification
 ```
