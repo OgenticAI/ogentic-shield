@@ -60,6 +60,23 @@ class AnalysisResult:
 
 
 @dataclass
+class RedactionMapping:
+    """Reversible mapping from redaction tokens to their original values.
+
+    Returned by ``Shield.redact()``; pass to ``Shield.unredact()`` to restore.
+    Within a single redaction call, repeated occurrences of the same value
+    receive the same token. Across calls, tokens differ (per-call salt) so
+    the same value is not linkable across documents.
+    """
+
+    tokens: dict[str, str] = field(default_factory=dict)
+    categories_redacted: list[str] = field(default_factory=list)
+    profile_id: str | None = None
+    text_hash: str = ""
+    created_at: str = ""
+
+
+@dataclass
 class Rule:
     id: str
     name: str

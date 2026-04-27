@@ -96,7 +96,9 @@ class TestVersionFlag:
     """Tests for --version flag."""
 
     def test_version(self):
+        from ogentic_shield import __version__
+
         runner = CliRunner()
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
-        assert "0.1.0" in result.output
+        assert __version__ in result.output

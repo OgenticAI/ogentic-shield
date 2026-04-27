@@ -5,10 +5,16 @@ from __future__ import annotations
 import logging
 
 from ogentic_shield.config import ShieldConfig, load_config
-from ogentic_shield.models import AnalysisResult, DetectionLayer, ShieldProfile
+from ogentic_shield.models import (
+    AnalysisResult,
+    DetectionLayer,
+    RedactionMapping,
+    ShieldProfile,
+)
 from ogentic_shield.pipeline import run_pipeline
 from ogentic_shield.profiles import get_profile
 from ogentic_shield.profiles import list_profiles as _list_profiles
+from ogentic_shield.redaction import redact_text, unredact_text
 
 logger = logging.getLogger("ogentic_shield")
 
@@ -84,6 +90,44 @@ class Shield:
             min_confidence=effective_min_confidence,
             llm_config=llm_config,
         )
+
+    def redact(
+        self,
+        text: str,
+        profile: str | None = None,
+        redact_categories: list[str] | None = None,
+        min_confidence: float | None = None,
+    ) -> tuple[str, RedactionMapping]:
+        """Substitute identifying entities with deterministic tokens.
+
+        Use this before sending text to an external LLM — it masks "who" while
+        preserving "how big" (numbers, ratios, percentages stay intact). Pair
+        with :py:meth:`unredact` to restore originals from the LLM response.
+
+        Args:
+            text: Input text.
+            profile: Profile ID (e.g. ``"shield-finance"``). Defaults to the
+                first profile this Shield was initialized with.
+            redact_categories: Override category labels to redact (e.g.
+                ``["Person", "Email"]``). ``None`` → per-profile defaults from
+                :data:`ogentic_shield.redaction.PROFILE_REDACT_CATEGORIES`.
+            min_confidence: Minimum entity confidence threshold for masking.
+
+        Returns:
+            ``(redacted_text, mapping)``. Pass ``mapping`` to ``unredact()``.
+        """
+        profile_id = profile or self._profile_ids[0]
+        result = self.analyze(
+            text,
+            profiles=[profile_id],
+            min_confidence=min_confidence,
+        )
+        return redact_text(text, result.entities, profile_id, redact_categories)
+
+    @staticmethod
+    def unredact(text: str, mapping: RedactionMapping) -> str:
+        """Restore tokens in ``text`` to their original values using ``mapping``."""
+        return unredact_text(text, mapping)
 
     @staticmethod
     def list_profiles() -> list[ShieldProfile]:
