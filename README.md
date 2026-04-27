@@ -42,6 +42,7 @@ Detect attorney-client privilege, HIPAA PHI, financial MNPI, and 50+ PII types *
 - [Detection Pipeline](#detection-pipeline)
 - [CLI](#cli)
 - [Python API](#python-api)
+- [Redaction (Detection &ne; Redaction)](#redaction-detection--redaction)
 - [Configuration](#configuration)
 - [Offline by Default](#offline-by-default)
 - [Frequently Asked Questions](#frequently-asked-questions)
@@ -397,6 +398,81 @@ print(profile.supported_entities)
 
 ---
 
+## Redaction (Detection &ne; Redaction)
+
+`Shield.analyze()` **classifies** &mdash; it tells you what's in the text and how sensitive it is. It does not modify the content.
+
+`Shield.redact()` **rewrites** &mdash; it substitutes identifying entities with deterministic tokens before you send the text to an external LLM, then `Shield.unredact()` restores them on the response.
+
+### The principle: anonymity = masking *who*, not *how big*
+
+When you wrap an LLM call with redaction, the goal is to mask **identifying information** without destroying **the shape of the data the model needs to reason about**:
+
+| Category | Default behavior | Why |
+|----------|------------------|-----|
+| Person, sponsor, address, email, phone, SSN | **Redacted** | Identifies individuals or counterparties |
+| Case number, Bates number (legal) | **Redacted** | Identifies the matter |
+| DOB, insurance ID, medical license (therapy) | **Redacted** | HIPAA Safe Harbor identifiers |
+| Loan amount, NOI, cap rate, EBITDA multiple, percentages | **Preserved** | The model needs the numbers to do math |
+| Property type, business plan, year built, occupancy | **Preserved** | Generic; required for sizing/reasoning logic |
+| Diagnosis code, medication, clinical risk flags | **Preserved** | Clinical content the model needs to respond appropriately |
+
+The detection layer still flags the preserved categories (so audit and routing decisions see them); the redaction layer just doesn't mask them by default. Override per-call with `redact_categories=[...]` if your use case differs.
+
+### Round-trip example
+
+```python
+from ogentic_shield import Shield
+
+shield = Shield(profiles=["shield-finance"])
+
+text = (
+    "Goldman Sachs is advising John Smith on the acquisition at $47/share, "
+    "representing a 5.2x EBITDA multiple. Contact: john@example.com."
+)
+
+redacted, mapping = shield.redact(text)
+# redacted ≈ "[Sponsor_a3f9b1] is advising [Person_b7e0c4] on the acquisition
+#            at $47/share, representing a 5.2x EBITDA multiple.
+#            Contact: [Email_4d2af1]."
+# Numbers stay; identifiers leave.
+
+response = call_external_llm(redacted)
+
+original = Shield.unredact(response, mapping)
+# Tokens in the response are restored to "Goldman Sachs", "John Smith", etc.
+```
+
+### Token format
+
+Tokens look like `[Person_a3f9b1]` &mdash; a friendly category prefix plus a 6-character hex hash. Properties:
+
+- **Within one call**: same value gets the same token (so the LLM sees coherent references &mdash; "John Smith" mentioned three times is still one person).
+- **Across calls**: tokens differ (per-call salt). The same value is not linkable across documents via rainbow-table lookup.
+- **Reversible**: only via the returned `RedactionMapping` &mdash; nothing in the token itself reveals the original.
+
+### Per-profile category defaults
+
+| Profile | Default `redact_categories` |
+|---------|------------------------------|
+| `shield-finance` | `Person, Address, Sponsor, Email, Phone, Ssn` |
+| `shield-legal` | defaults &nbsp;+&nbsp; `CaseNumber, BatesNumber` |
+| `shield-therapy` | defaults &nbsp;+&nbsp; `DateOfBirth, InsuranceId, MedicalLicense` |
+
+Override per call:
+
+```python
+# Mask only emails
+redacted, mapping = shield.redact(text, redact_categories=["Email"])
+
+# Power-user: pass underlying entity types directly
+redacted, mapping = shield.redact(text, redact_categories=["INSTITUTION_NAME", "PERSON"])
+```
+
+Available labels: `Person`, `Address`, `Sponsor`, `Email`, `Phone`, `Ssn`, `DateOfBirth`, `InsuranceId`, `MedicalLicense`, `CaseNumber`, `BatesNumber`, `Diagnosis`, `Medication`, `CreditCard`, `BankNumber`, `Url`, `IpAddress`, `Passport`, `Itin`, `DriverLicense`, `DateTime`, `Iban`, `Nationality`.
+
+---
+
 ## Configuration
 
 Create an `ogentic-shield.yaml` in your project root to customize defaults:
@@ -512,9 +588,11 @@ Not yet in v0.1. A Docker image is planned for v0.2 alongside the HTTP API serve
 | Configurable scoring with profile-driven weights | v0.1.0 | Shipped |
 | CLI with JSON, table, and summary output | v0.1.0 | Shipped |
 | 198 passing tests | v0.1.0 | Shipped |
+| Category-aware `redact()` / `unredact()` API | v0.2.0 | Shipped |
+| Per-profile redact-category defaults | v0.2.0 | Shipped |
 | Layer 3: Local LLM classification via Ollama | v0.2.0 | Planned |
-| MCP server mode (`ogentic-shield serve --mcp`) | v0.2.0 | Planned |
-| HTTP API server (`ogentic-shield serve --http`) | v0.2.0 | Planned |
+| MCP server (`shield.analyze`, `shield.redact`, `shield.profiles`) | v0.2.0 | Planned |
+| Audit event emission for ogentic-audit | v0.2.0 | Planned |
 | Custom profile loading from YAML | v0.2.0 | Planned |
 | Docker image | v0.2.0 | Planned |
 | Additional shield profiles (healthcare, accounting) | v0.3.0+ | Planned |
