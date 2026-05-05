@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import logging
 
-from ogentic_shield.config import ShieldConfig, load_config
+from ogentic_shield._version import __version__
+from ogentic_shield.audit import (
+    AuditBackend,
+    NullAuditBackend,
+    build_event,
+    safe_emit,
+)
+from ogentic_shield.config import ShieldConfig, build_audit_backend, load_config
 from ogentic_shield.models import (
     AnalysisResult,
     DetectionLayer,
@@ -29,33 +36,42 @@ class Shield:
         self,
         profiles: list[str] | None = None,
         config: ShieldConfig | None = None,
+        audit_backend: AuditBackend | None = None,
     ):
         self._config = config or load_config()
         profile_ids = profiles or self._config.profiles
         self._profiles: list[ShieldProfile] = [get_profile(pid) for pid in profile_ids]
         self._profile_ids = profile_ids
+        # Caller-provided backend wins; otherwise build from config; otherwise no-op.
+        self._audit_backend: AuditBackend = (
+            audit_backend
+            if audit_backend is not None
+            else build_audit_backend(self._config.audit)
+            or NullAuditBackend()
+        )
 
-        logger.info("Shield initialized with profiles: %s", ", ".join(profile_ids))
+        logger.info(
+            "Shield initialized with profiles: %s | audit: %s",
+            ", ".join(profile_ids),
+            type(self._audit_backend).__name__,
+        )
 
-    def analyze(
+    @property
+    def audit_backend(self) -> AuditBackend:
+        """The audit backend currently receiving events from this Shield."""
+        return self._audit_backend
+
+    def _run_analysis(
         self,
         text: str,
-        profiles: list[str] | None = None,
-        layers: list[DetectionLayer] | None = None,
-        min_confidence: float | None = None,
-        include_context: bool = False,
+        profiles: list[str] | None,
+        layers: list[DetectionLayer] | None,
+        min_confidence: float | None,
     ) -> AnalysisResult:
-        """Analyze text for regulatory sensitivity.
+        """Internal: runs the pipeline without emitting an audit event.
 
-        Args:
-            text: Input text to analyze.
-            profiles: Override profile IDs for this call.
-            layers: Override which detection layers to run.
-            min_confidence: Override minimum confidence threshold.
-            include_context: Include surrounding text in entity metadata.
-
-        Returns:
-            AnalysisResult with detected entities, score, and routing suggestion.
+        Public methods (``analyze``, ``redact``) wrap this and emit the
+        appropriate event type, ensuring exactly one event per public call.
         """
         active_profiles = self._profiles
         if profiles:
@@ -91,6 +107,43 @@ class Shield:
             llm_config=llm_config,
         )
 
+    def analyze(
+        self,
+        text: str,
+        profiles: list[str] | None = None,
+        layers: list[DetectionLayer] | None = None,
+        min_confidence: float | None = None,
+        include_context: bool = False,  # noqa: ARG002
+    ) -> AnalysisResult:
+        """Analyze text for regulatory sensitivity.
+
+        Args:
+            text: Input text to analyze.
+            profiles: Override profile IDs for this call.
+            layers: Override which detection layers to run.
+            min_confidence: Override minimum confidence threshold.
+            include_context: Include surrounding text in entity metadata.
+
+        Returns:
+            AnalysisResult with detected entities, score, and routing suggestion.
+        """
+        result = self._run_analysis(text, profiles, layers, min_confidence)
+        model_used = (
+            self._config.llm.model
+            if self._config.llm.enabled and DetectionLayer.LLM in result.layers_invoked
+            else None
+        )
+        safe_emit(
+            self._audit_backend,
+            build_event(
+                "shield.analyze",
+                result,
+                shield_version=__version__,
+                model_used=model_used,
+            ),
+        )
+        return result
+
     def redact(
         self,
         text: str,
@@ -117,12 +170,26 @@ class Shield:
             ``(redacted_text, mapping)``. Pass ``mapping`` to ``unredact()``.
         """
         profile_id = profile or self._profile_ids[0]
-        result = self.analyze(
-            text,
-            profiles=[profile_id],
-            min_confidence=min_confidence,
+        result = self._run_analysis(
+            text, profiles=[profile_id], layers=None, min_confidence=min_confidence,
         )
-        return redact_text(text, result.entities, profile_id, redact_categories)
+        redacted, mapping = redact_text(text, result.entities, profile_id, redact_categories)
+        model_used = (
+            self._config.llm.model
+            if self._config.llm.enabled and DetectionLayer.LLM in result.layers_invoked
+            else None
+        )
+        safe_emit(
+            self._audit_backend,
+            build_event(
+                "shield.redact",
+                result,
+                shield_version=__version__,
+                redaction=mapping,
+                model_used=model_used,
+            ),
+        )
+        return redacted, mapping
 
     @staticmethod
     def unredact(text: str, mapping: RedactionMapping) -> str:

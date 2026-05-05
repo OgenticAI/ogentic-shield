@@ -1,5 +1,14 @@
 """ogentic-shield: Regulatory sensitivity detection for AI applications."""
 
+from ogentic_shield._version import __version__
+from ogentic_shield.audit import (
+    AuditBackend,
+    CallbackAuditBackend,
+    FanoutAuditBackend,
+    FileAuditBackend,
+    NullAuditBackend,
+    StderrAuditBackend,
+)
 from ogentic_shield.models import (
     AnalysisResult,
     CategoryGroup,
@@ -7,6 +16,7 @@ from ogentic_shield.models import (
     DetectionLayer,
     RedactionMapping,
     SensitivityLevel,
+    ShieldAuditEvent,
     ShieldProfile,
 )
 from ogentic_shield.profiles import (
@@ -23,8 +33,6 @@ from ogentic_shield.redaction import (
 )
 from ogentic_shield.shield import Shield
 
-__version__ = "0.2.0.dev0"
-
 __all__ = [
     "Shield",
     "AnalysisResult",
@@ -33,7 +41,14 @@ __all__ = [
     "DetectionLayer",
     "RedactionMapping",
     "SensitivityLevel",
+    "ShieldAuditEvent",
     "ShieldProfile",
+    "AuditBackend",
+    "CallbackAuditBackend",
+    "FanoutAuditBackend",
+    "FileAuditBackend",
+    "NullAuditBackend",
+    "StderrAuditBackend",
     "list_profiles",
     "load_profile_from_yaml",
     "register_profile",
