@@ -7,6 +7,7 @@ import click
 from ogentic_shield import __version__
 from ogentic_shield.cli.analyze import analyze
 from ogentic_shield.cli.profiles_cmd import profiles
+from ogentic_shield.cli.serve import serve
 
 
 @click.group()
@@ -17,6 +18,7 @@ def cli():
 
 cli.add_command(analyze)
 cli.add_command(profiles)
+cli.add_command(serve)
 
 if __name__ == "__main__":
     cli()
