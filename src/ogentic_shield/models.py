@@ -60,6 +60,33 @@ class AnalysisResult:
 
 
 @dataclass
+class ShieldAuditEvent:
+    """Structured audit event emitted by Shield for chain-of-custody tracking.
+
+    Per OGE-316: input text is **never** stored — only its sha256 hash. The
+    entity payload is shape-only (category, group, confidence, layer) — entity
+    text is intentionally omitted.
+    """
+
+    event_type: str
+    timestamp: str
+    input_hash: str
+    profile: str | None
+    score: int
+    level: str
+    routing: str
+    entity_count: int
+    entities_detected: list[dict] = field(default_factory=list)
+    layers_invoked: list[str] = field(default_factory=list)
+    processing_time_ms: float = 0.0
+    redaction_applied: bool = False
+    categories_redacted: list[str] = field(default_factory=list)
+    tokens_emitted: int = 0
+    model_used: str | None = None
+    shield_version: str = ""
+
+
+@dataclass
 class RedactionMapping:
     """Reversible mapping from redaction tokens to their original values.
 

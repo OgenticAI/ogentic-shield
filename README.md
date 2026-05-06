@@ -43,6 +43,7 @@ Detect attorney-client privilege, HIPAA PHI, financial MNPI, and 50+ PII types *
 - [CLI](#cli)
 - [Python API](#python-api)
 - [Redaction (Detection &ne; Redaction)](#redaction-detection--redaction)
+- [Audit Events](#audit-events)
 - [Configuration](#configuration)
 - [Offline by Default](#offline-by-default)
 - [Frequently Asked Questions](#frequently-asked-questions)
@@ -473,6 +474,114 @@ Available labels: `Person`, `Address`, `Sponsor`, `Email`, `Phone`, `Ssn`, `Date
 
 ---
 
+## Audit Events
+
+Every `analyze()` and `redact()` call emits a structured **audit event** &mdash; a small JSON record describing what was detected, what was redacted, and what routing decision was suggested. Events go to a pluggable `AuditBackend` and are designed to be consumed by `ogentic-audit` (the upcoming chain-of-custody store) or any other observability sink.
+
+### What an event looks like
+
+```json
+{
+  "event_type": "shield.redact",
+  "timestamp": "2026-04-27T08:30:14+00:00",
+  "input_hash": "sha256:9f2a4b1d8e3c7a05",
+  "profile": "shield-finance",
+  "score": 87,
+  "level": "HIGH",
+  "routing": "REDACT_CLOUD",
+  "entity_count": 3,
+  "entities_detected": [
+    {"category": "INSTITUTION_NAME", "category_group": "PII",
+     "confidence": 0.92, "layer": "REGEX", "start": 0, "end": 13},
+    {"category": "PERSON", "category_group": "PII",
+     "confidence": 0.85, "layer": "NER", "start": 25, "end": 35}
+  ],
+  "layers_invoked": ["REGEX", "NER", "RULES"],
+  "processing_time_ms": 41.2,
+  "redaction_applied": true,
+  "categories_redacted": ["Person", "Address", "Sponsor", "Email", "Phone", "Ssn"],
+  "tokens_emitted": 2,
+  "model_used": null,
+  "shield_version": "0.2.0"
+}
+```
+
+### Privacy invariants
+
+- **No raw text**, ever. Only a `sha256:`-prefixed 16-hex-character hash of the input.
+- **No entity text** in `entities_detected`. Only category, group, confidence, layer, and span offsets &mdash; enough for forensics, never enough to reconstruct the input.
+- Backends inherit these guarantees. An `ogentic-audit` implementor cannot "accidentally" learn the original text from the wire format.
+
+### Choosing a backend
+
+```python
+from ogentic_shield import (
+    Shield,
+    NullAuditBackend, StderrAuditBackend, FileAuditBackend,
+    CallbackAuditBackend, FanoutAuditBackend,
+)
+
+# Production: durable JSON-lines on disk.
+shield = Shield(
+    profiles=["shield-finance"],
+    audit_backend=FileAuditBackend("/var/log/shield-audit.jsonl"),
+)
+
+# Development: stream to stderr.
+shield = Shield(audit_backend=StderrAuditBackend())
+
+# Bridge to your own observability system.
+shield = Shield(audit_backend=CallbackAuditBackend(my_sink))
+
+# Multiple sinks at once.
+shield = Shield(audit_backend=FanoutAuditBackend([
+    FileAuditBackend("/var/log/shield-audit.jsonl"),
+    CallbackAuditBackend(opentelemetry_exporter),
+]))
+```
+
+Or wire it via `ogentic-shield.yaml`:
+
+```yaml
+audit:
+  backend: file       # null | stderr | file
+  path: /var/log/shield-audit.jsonl
+```
+
+`backend: null` (the default) drops every event &mdash; emission is opt-in.
+
+### Implementing your own backend
+
+Audit backends are a [Protocol](https://docs.python.org/3/library/typing.html#typing.Protocol) &mdash; conform to it and Shield will accept your class:
+
+```python
+from ogentic_shield import AuditBackend, ShieldAuditEvent
+
+class MyAuditBackend:
+    """Anything that satisfies the AuditBackend protocol works."""
+
+    def emit(self, event: ShieldAuditEvent) -> None:
+        # Persist, forward to a queue, write to a SIEM, whatever.
+        ...
+
+shield = Shield(audit_backend=MyAuditBackend())
+```
+
+Contract:
+
+| Rule | Why |
+|------|-----|
+| `emit()` MUST NOT raise &mdash; failures are caught and logged | Audit must never break the user's pipeline |
+| Implementations SHOULD treat `event.input_hash` as opaque | The format may change; only equality across rows is guaranteed |
+| `event.entities_detected` will not contain entity text | Backends inherit this privacy guarantee |
+| `event.timestamp` is ISO-8601 UTC, second precision | Fits SIEM ingestion conventions |
+
+### Failure isolation
+
+Audit emission runs after the user's `analyze()` / `redact()` call returns its result. If your backend raises, Shield logs the exception at `ERROR` level and continues &mdash; the user always gets their result back, even if downstream observability is on fire.
+
+---
+
 ## Configuration
 
 Create an `ogentic-shield.yaml` in your project root to customize defaults:
@@ -590,9 +699,10 @@ Not yet in v0.1. A Docker image is planned for v0.2 alongside the HTTP API serve
 | 198 passing tests | v0.1.0 | Shipped |
 | Category-aware `redact()` / `unredact()` API | v0.2.0 | Shipped |
 | Per-profile redact-category defaults | v0.2.0 | Shipped |
+| Audit event emission + pluggable backends | v0.2.0 | Shipped |
+| `AuditBackend` protocol for `ogentic-audit` | v0.2.0 | Shipped |
 | Layer 3: Local LLM classification via Ollama | v0.2.0 | Planned |
 | MCP server (`shield.analyze`, `shield.redact`, `shield.profiles`) | v0.2.0 | Planned |
-| Audit event emission for ogentic-audit | v0.2.0 | Planned |
 | Custom profile loading from YAML | v0.2.0 | Planned |
 | Docker image | v0.2.0 | Planned |
 | Additional shield profiles (healthcare, accounting) | v0.3.0+ | Planned |

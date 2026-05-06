@@ -8,6 +8,7 @@ from pathlib import Path
 
 import yaml  # type: ignore[import-untyped]  # PyYAML stubs not pinned.
 
+from ogentic_shield.audit import AuditBackend, FileAuditBackend, StderrAuditBackend
 from ogentic_shield.models import ConfigError
 
 logger = logging.getLogger("ogentic_shield.config")
@@ -39,6 +40,18 @@ class OutputConfig:
 
 
 @dataclass
+class AuditConfig:
+    """Audit backend selection.
+
+    ``backend`` is one of ``null``, ``stderr``, ``file``. ``path`` is required
+    when ``backend == "file"`` (the parent directory is created on demand).
+    """
+
+    backend: str = "null"
+    path: str | None = None
+
+
+@dataclass
 class ShieldConfig:
     version: str = "0.1"
     profiles: list[str] = field(default_factory=lambda: ["shield-legal", "shield-therapy"])
@@ -48,7 +61,40 @@ class ShieldConfig:
     llm: LlmConfig = field(default_factory=LlmConfig)
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
+    audit: AuditConfig = field(default_factory=AuditConfig)
     custom_profiles_dir: str | None = None
+
+
+def build_audit_backend(cfg: AuditConfig) -> AuditBackend | None:
+    """Construct an :class:`AuditBackend` from an :class:`AuditConfig`.
+
+    Returns ``None`` when ``backend == "null"``; the caller substitutes a
+    :class:`NullAuditBackend` so the Shield always has a non-None backend.
+    """
+    backend = (cfg.backend or "null").lower()
+    if backend == "null":
+        return None
+    if backend == "stderr":
+        return StderrAuditBackend()
+    if backend == "file":
+        if not cfg.path:
+            raise ConfigError("audit.backend=file requires audit.path")
+        return FileAuditBackend(cfg.path)
+    raise ConfigError(
+        f"Unknown audit.backend {cfg.backend!r}; expected null | stderr | file",
+    )
+
+
+__all__ = [
+    "AuditConfig",
+    "DEFAULT_CONFIG_FILENAME",
+    "LlmConfig",
+    "OutputConfig",
+    "ScoringConfig",
+    "ShieldConfig",
+    "build_audit_backend",
+    "load_config",
+]
 
 
 def load_config(path: str | Path | None = None) -> ShieldConfig:
@@ -100,6 +146,12 @@ def load_config(path: str | Path | None = None) -> ShieldConfig:
         max_entities=output_data.get("max_entities", 50),
     )
 
+    audit_data = data.get("audit", {})
+    audit_config = AuditConfig(
+        backend=audit_data.get("backend", "null"),
+        path=audit_data.get("path"),
+    )
+
     layers_data = data.get("layers", {})
 
     return ShieldConfig(
@@ -111,5 +163,6 @@ def load_config(path: str | Path | None = None) -> ShieldConfig:
         llm=llm_config,
         scoring=scoring_config,
         output=output_config,
+        audit=audit_config,
         custom_profiles_dir=data.get("custom_profiles_dir"),
     )

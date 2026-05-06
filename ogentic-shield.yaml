@@ -25,4 +25,11 @@ output:
   include_processing_time: true
   max_entities: 50
 
+# Audit emission for chain-of-custody (OGE-316).
+# backend: null (default, no-op) | stderr | file
+# Events carry only the input hash, never the raw text.
+audit:
+  backend: null
+  # path: /var/log/shield-audit.jsonl   # required when backend == "file"
+
 custom_profiles_dir: ./profiles
