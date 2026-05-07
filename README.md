@@ -95,7 +95,7 @@ ogentic-redact     ogentic-vault     ogentic-legal-bench
   (MCP servers for legal workflows)
 ```
 
-Together they form a complete open-source stack for privilege-protected AI &mdash; and the foundation for [Privy](https://ogenticai.com), OgenticAI's commercial product for regulated professionals.
+Together they form a complete open-source stack for privilege-protected AI &mdash; and the foundation for [Sotto](https://ogenticai.com), OgenticAI's commercial product for regulated professionals.
 
 All `ogentic-*` projects are Apache 2.0 licensed.
 
