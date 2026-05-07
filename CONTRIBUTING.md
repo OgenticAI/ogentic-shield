@@ -112,9 +112,59 @@ To suggest a new feature:
 
 ## Adding a New Recognizer
 
-This is the most common contribution. Here's the pattern:
+This is the most common contribution. There are two paths depending on
+whether the recognizer ships with `ogentic-shield` (built-in) or lives
+in your own codebase (custom).
 
-### 1. Add the recognizer class
+### Path A — Custom recognizer (your own codebase)
+
+If you're building a recognizer for your domain or a downstream
+application, you don't need to fork `ogentic-shield`. Use the SDK:
+
+1. **Copy the template** &mdash; [`examples/recognizer_template.py`](./examples/recognizer_template.py) has the canonical structure with inline docs.
+
+2. **Iterate with the test harness:**
+
+   ```bash
+   ogentic-shield test-recognizer path/to/your_recognizer.py
+   ogentic-shield test-recognizer path/to/your_recognizer.py --text "Try me"
+   ogentic-shield test-recognizer path/to/your_recognizer.py --text-file fixtures/sample.txt
+   ```
+
+   The harness imports your file, finds every `PatternRecognizer`
+   subclass defined in it, runs them against `--text` / `--text-file`
+   inputs (and any `SAMPLE_TEXTS` list you defined in the module), and
+   prints the matches.
+
+3. **Worked example** &mdash; [`examples/gdpr_recognizer.py`](./examples/gdpr_recognizer.py) ships three production-shape EU recognizers (UK NINO, German Steuer-ID, EU VAT number) you can crib from.
+
+4. **Plug into a Shield instance** by registering your recognizer in a
+   custom profile and passing the profile to `Shield`:
+
+   ```python
+   from ogentic_shield import Shield, register_profile
+   from ogentic_shield.models import CategoryGroup, ShieldProfile
+   from your_module import MyNewRecognizer
+
+   profile = ShieldProfile(
+       id="my-profile",
+       name="My custom profile",
+       version="0.1.0",
+       description="...",
+       recognizers=[MyNewRecognizer()],
+       rules=[],
+       scoring_weights={CategoryGroup.PII: 15},
+       supported_entities=["MY_ENTITY_TYPE"],
+   )
+   register_profile(profile)
+   shield = Shield(profiles=["my-profile"])
+   ```
+
+### Path B — Built-in recognizer (this repo)
+
+If you want your recognizer to ship with `ogentic-shield` for everyone:
+
+#### 1. Add the recognizer class
 
 ```python
 # src/ogentic_shield/recognizers/<domain>.py
@@ -139,15 +189,15 @@ class MyNewRecognizer(PatternRecognizer):
         )
 ```
 
-### 2. Register it in the profile
+#### 2. Register it in the profile
 
 Add the recognizer instance to the appropriate profile in `src/ogentic_shield/profiles/<domain>.py`.
 
-### 3. Map the entity type
+#### 3. Map the entity type
 
 Add the entity type to the `_ENTITY_CATEGORY_GROUP` dict in `src/ogentic_shield/layers/regex_ner.py`.
 
-### 4. Write tests
+#### 4. Write tests
 
 ```python
 # tests/recognizers/test_<domain>.py
