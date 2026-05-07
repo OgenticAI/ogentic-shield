@@ -1,0 +1,86 @@
+{
+  "manifest_version": "0.4",
+  "name": "ogentic-shield",
+  "display_name": "Ogentic Shield",
+  "version": "0.2.0",
+  "description": "Detect attorney-client privilege, HIPAA PHI, and financial MNPI in text — locally, before content reaches an AI model.",
+  "long_description": "Ogentic Shield extends Microsoft Presidio with 30 domain-specific recognizers across four profiles (legal, therapy, therapy-pro, finance) plus a 4-layer detection pipeline (regex / NER / rules / localhost-Ollama LLM). All processing runs on your device. The MCP bundle exposes five tools — `shield.analyze`, `shield.analyze_batch`, `shield.redact`, `shield.unredact`, `shield.profiles` — that any MCP client (Claude Desktop, Goose, Cursor) can call. The redact / unredact pair lets you mask identifying entities before sending text to a cloud LLM and restore them on the response, byte-for-byte. Layer 3 calls localhost Ollama only — never an external endpoint.",
+  "author": {
+    "name": "OgenticAI",
+    "email": "team@ogenticai.com",
+    "url": "https://ogenticai.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OgenticAI/ogentic-shield.git"
+  },
+  "homepage": "https://github.com/OgenticAI/ogentic-shield",
+  "documentation": "https://github.com/OgenticAI/ogentic-shield#readme",
+  "support": "https://github.com/OgenticAI/ogentic-shield/issues",
+  "license": "Apache-2.0",
+  "keywords": [
+    "privacy",
+    "pii",
+    "hipaa",
+    "privilege",
+    "mnpi",
+    "presidio",
+    "compliance",
+    "regulatory",
+    "redaction",
+    "local-only"
+  ],
+  "server": {
+    "type": "uv",
+    "entry_point": "src/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "src/server.py"
+      ],
+      "env": {
+        "OGENTIC_SHIELD_PROFILES": "${user_config.profiles}"
+      }
+    }
+  },
+  "user_config": {
+    "profiles": {
+      "type": "string",
+      "title": "Active profiles",
+      "description": "Comma-separated list of Shield profile ids to load. Available: shield-legal, shield-therapy, shield-therapy-pro, shield-finance.",
+      "default": "shield-legal,shield-therapy,shield-therapy-pro,shield-finance",
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "shield.analyze",
+      "description": "Classify text for regulatory sensitivity. Returns score (0-100), level (NONE..CRITICAL), routing suggestion (LOCAL_ONLY / REDACT_CLOUD / CLOUD_OK), detected entities (shape-only by default), and pipeline diagnostics."
+    },
+    {
+      "name": "shield.analyze_batch",
+      "description": "Analyze multiple texts in parallel. Per-item failures are captured (one bad input doesn't sink the rest of the batch)."
+    },
+    {
+      "name": "shield.redact",
+      "description": "Substitute identifying entities with deterministic tokens. Use before sending text to a cloud LLM. Numbers, percentages, and ratios survive; names, firms, emails, and IDs get masked."
+    },
+    {
+      "name": "shield.unredact",
+      "description": "Restore tokens in text to their original values using the mapping returned by shield.redact. Round-trip is byte-for-byte."
+    },
+    {
+      "name": "shield.profiles",
+      "description": "List available shield profiles loaded on this server. Use to discover what categories each profile covers."
+    }
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  }
+}

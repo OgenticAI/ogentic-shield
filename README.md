@@ -483,6 +483,14 @@ Available labels: `Person`, `Address`, `Sponsor`, `Email`, `Phone`, `Ssn`, `Date
 
 `ogentic-shield` ships an [MCP](https://modelcontextprotocol.io) server so LLM clients (Claude Desktop, Goose, Cursor, custom agents) can call into the same pipeline as the CLI &mdash; classify or redact text inline before forwarding it to a foundation model.
 
+### Easiest install — MCP Bundle (`.mcpb`)
+
+For non-developers and one-click distribution: download the latest `.mcpb` from [the releases page](https://github.com/OgenticAI/ogentic-shield/releases/latest), then in Claude Desktop go to **Settings → Connectors → `+` → Install from file** and pick the file you downloaded. Five `shield.*` tools appear; nothing else to configure. First launch downloads spaCy's `en_core_web_lg` model (~600MB, one time).
+
+The bundle source lives at [`mcpb/`](mcpb/); rebuild via `./scripts/pack-mcpb.sh` (requires `npm install -g @anthropic-ai/mcpb`).
+
+### Developer install — pip + manual config
+
 ```bash
 # Optional dep — installs the model-context-protocol Python SDK
 pip install 'ogentic-shield[mcp]'

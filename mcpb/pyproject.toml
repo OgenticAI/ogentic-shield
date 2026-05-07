@@ -1,0 +1,22 @@
+[project]
+name = "ogentic-shield-mcpb"
+version = "0.2.0"
+description = "MCP Bundle wrapper for ogentic-shield. Installed by Claude Desktop via .mcpb."
+requires-python = ">=3.10"
+
+# UV resolves these on first launch via Claude Desktop's bundled UV runtime.
+# We pull ogentic-shield from the GitHub release tarball — once the package
+# lands on PyPI, swap to the `ogentic-shield[mcp]` line below.
+#
+# IMPORTANT: spaCy's en_core_web_lg model (~600MB) is downloaded by the
+# server entry point on first run, not by pip. UV doesn't ship the model.
+dependencies = [
+  "ogentic-shield[mcp,llm] @ git+https://github.com/OgenticAI/ogentic-shield.git@main",
+  # Once published to PyPI, replace the line above with:
+  # "ogentic-shield[mcp,llm]>=0.2.0",
+]
+
+[tool.uv]
+# Don't try to build a venv inside the MCPB extracted directory — Claude
+# Desktop's UV runtime owns venv lifecycle, not us.
+package = false
