@@ -62,6 +62,17 @@ class ModelRegistry:
     # the structured-output prompt in :mod:`ogentic_shield.layers.llm_prompts`.
     # Mixtral 8x7B is the "quality" pick because it consistently outperforms
     # dense 7B models on the legal/MNPI benchmarks (see OGE-320).
+    #
+    # OGE-320 also tested ``granite3-moe:3b``, ``llama3.2:3b``, and ``qwen3:4b``
+    # against the OGE-51 datasets (see benchmarks/MOE_COMPARISON.md). Findings:
+    #   - granite3-moe:3b is *worse* than 1B on finance precision (47.6% vs 55.6%)
+    #     so it is intentionally NOT recommended at any tier.
+    #   - llama3.2:3b is the best active Layer 3 model today (~67% precision)
+    #     but still under the L1+L2-only baseline, so promoting it would be a
+    #     regression. Available via ``model_override`` for callers who want to
+    #     trade slightly more precision than 1B for marginal recall.
+    #   - qwen3:4b times out frequently on therapy-length inputs at the default
+    #     5s timeout; intentionally kept only for COMPREHENSIVE/NER augment use.
     DEFAULTS: dict[ModelTier, dict[str, str]] = {
         ModelTier.FAST: {
             ROLE_CLASSIFICATION: "granite3.1-moe:1b",
