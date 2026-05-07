@@ -1,0 +1,272 @@
+{
+  "generated_at": "2026-05-07T12:20:21Z",
+  "datasets": [
+    {
+      "name": "legal_privilege",
+      "profile_id": "shield-legal",
+      "precision_target": 0.9
+    },
+    {
+      "name": "therapy_phi",
+      "profile_id": "shield-therapy",
+      "precision_target": 0.92
+    },
+    {
+      "name": "finance_mnpi",
+      "profile_id": "shield-finance",
+      "precision_target": 0.88
+    }
+  ],
+  "runs": [
+    {
+      "model": "",
+      "enabled": false,
+      "skipped": false,
+      "skip_reason": "",
+      "per_dataset": {
+        "legal_privilege": {
+          "precision": 0.8571428571428571,
+          "recall": 1.0,
+          "f1": 0.923076923076923,
+          "median_ms": 641.3157500210218,
+          "p95_ms": 820.5711329588667,
+          "examples": 23.0,
+          "tp": 12.0,
+          "fp": 2.0,
+          "fn": 0.0,
+          "tn": 9.0,
+          "precision_target": 0.9,
+          "meets_target": 0.0
+        },
+        "therapy_phi": {
+          "precision": 0.8461538461538461,
+          "recall": 0.9166666666666666,
+          "f1": 0.8799999999999999,
+          "median_ms": 564.3289579893462,
+          "p95_ms": 814.247774973046,
+          "examples": 23.0,
+          "tp": 11.0,
+          "fp": 2.0,
+          "fn": 1.0,
+          "tn": 9.0,
+          "precision_target": 0.92,
+          "meets_target": 0.0
+        },
+        "finance_mnpi": {
+          "precision": 0.75,
+          "recall": 0.75,
+          "f1": 0.75,
+          "median_ms": 567.7485829801299,
+          "p95_ms": 746.445332991425,
+          "examples": 23.0,
+          "tp": 9.0,
+          "fp": 3.0,
+          "fn": 3.0,
+          "tn": 8.0,
+          "precision_target": 0.88,
+          "meets_target": 0.0
+        }
+      }
+    },
+    {
+      "model": "granite3.1-moe:1b",
+      "enabled": true,
+      "skipped": false,
+      "skip_reason": "",
+      "per_dataset": {
+        "legal_privilege": {
+          "precision": 0.6,
+          "recall": 1.0,
+          "f1": 0.7499999999999999,
+          "median_ms": 1701.430374989286,
+          "p95_ms": 2650.6018001935445,
+          "examples": 23.0,
+          "tp": 12.0,
+          "fp": 8.0,
+          "fn": 0.0,
+          "tn": 3.0,
+          "precision_target": 0.9,
+          "meets_target": 0.0
+        },
+        "therapy_phi": {
+          "precision": 0.55,
+          "recall": 0.9166666666666666,
+          "f1": 0.6874999999999999,
+          "median_ms": 1763.3410419803113,
+          "p95_ms": 2580.552049994003,
+          "examples": 23.0,
+          "tp": 11.0,
+          "fp": 9.0,
+          "fn": 1.0,
+          "tn": 2.0,
+          "precision_target": 0.92,
+          "meets_target": 0.0
+        },
+        "finance_mnpi": {
+          "precision": 0.5555555555555556,
+          "recall": 0.8333333333333334,
+          "f1": 0.6666666666666667,
+          "median_ms": 742.9057089611888,
+          "p95_ms": 2573.5293248319067,
+          "examples": 23.0,
+          "tp": 10.0,
+          "fp": 8.0,
+          "fn": 2.0,
+          "tn": 3.0,
+          "precision_target": 0.88,
+          "meets_target": 0.0
+        }
+      }
+    },
+    {
+      "model": "granite3-moe:3b",
+      "enabled": true,
+      "skipped": false,
+      "skip_reason": "",
+      "per_dataset": {
+        "legal_privilege": {
+          "precision": 0.5714285714285714,
+          "recall": 1.0,
+          "f1": 0.7272727272727273,
+          "median_ms": 1536.2457919982262,
+          "p95_ms": 9198.73572520446,
+          "examples": 23.0,
+          "tp": 12.0,
+          "fp": 9.0,
+          "fn": 0.0,
+          "tn": 2.0,
+          "precision_target": 0.9,
+          "meets_target": 0.0
+        },
+        "therapy_phi": {
+          "precision": 0.55,
+          "recall": 0.9166666666666666,
+          "f1": 0.6874999999999999,
+          "median_ms": 1907.543417008128,
+          "p95_ms": 3049.606941791717,
+          "examples": 23.0,
+          "tp": 11.0,
+          "fp": 9.0,
+          "fn": 1.0,
+          "tn": 2.0,
+          "precision_target": 0.92,
+          "meets_target": 0.0
+        },
+        "finance_mnpi": {
+          "precision": 0.47619047619047616,
+          "recall": 0.8333333333333334,
+          "f1": 0.6060606060606061,
+          "median_ms": 761.54191698879,
+          "p95_ms": 2391.880408185534,
+          "examples": 23.0,
+          "tp": 10.0,
+          "fp": 11.0,
+          "fn": 2.0,
+          "tn": 0.0,
+          "precision_target": 0.88,
+          "meets_target": 0.0
+        }
+      }
+    },
+    {
+      "model": "llama3.2:3b",
+      "enabled": true,
+      "skipped": false,
+      "skip_reason": "",
+      "per_dataset": {
+        "legal_privilege": {
+          "precision": 0.6666666666666666,
+          "recall": 1.0,
+          "f1": 0.8,
+          "median_ms": 2027.0724169677123,
+          "p95_ms": 12060.902857978363,
+          "examples": 23.0,
+          "tp": 12.0,
+          "fp": 6.0,
+          "fn": 0.0,
+          "tn": 5.0,
+          "precision_target": 0.9,
+          "meets_target": 0.0
+        },
+        "therapy_phi": {
+          "precision": 0.6470588235294118,
+          "recall": 0.9166666666666666,
+          "f1": 0.7586206896551724,
+          "median_ms": 3212.1161250397563,
+          "p95_ms": 8140.601833432447,
+          "examples": 23.0,
+          "tp": 11.0,
+          "fp": 6.0,
+          "fn": 1.0,
+          "tn": 5.0,
+          "precision_target": 0.92,
+          "meets_target": 0.0
+        },
+        "finance_mnpi": {
+          "precision": 0.6666666666666666,
+          "recall": 0.8333333333333334,
+          "f1": 0.7407407407407408,
+          "median_ms": 748.0242500314489,
+          "p95_ms": 4659.262866619974,
+          "examples": 23.0,
+          "tp": 10.0,
+          "fp": 5.0,
+          "fn": 2.0,
+          "tn": 6.0,
+          "precision_target": 0.88,
+          "meets_target": 0.0
+        }
+      }
+    },
+    {
+      "model": "qwen3:4b",
+      "enabled": true,
+      "skipped": false,
+      "skip_reason": "",
+      "per_dataset": {
+        "legal_privilege": {
+          "precision": 0.8571428571428571,
+          "recall": 1.0,
+          "f1": 0.923076923076923,
+          "median_ms": 19187.298458011355,
+          "p95_ms": 61122.81314161373,
+          "examples": 23.0,
+          "tp": 12.0,
+          "fp": 2.0,
+          "fn": 0.0,
+          "tn": 9.0,
+          "precision_target": 0.9,
+          "meets_target": 0.0
+        },
+        "therapy_phi": {
+          "precision": 0.8461538461538461,
+          "recall": 0.9166666666666666,
+          "f1": 0.8799999999999999,
+          "median_ms": 60654.75179196801,
+          "p95_ms": 60904.71151656238,
+          "examples": 23.0,
+          "tp": 11.0,
+          "fp": 2.0,
+          "fn": 1.0,
+          "tn": 9.0,
+          "precision_target": 0.92,
+          "meets_target": 0.0
+        },
+        "finance_mnpi": {
+          "precision": 0.75,
+          "recall": 0.75,
+          "f1": 0.75,
+          "median_ms": 953.3675839775242,
+          "p95_ms": 60958.992516598664,
+          "examples": 23.0,
+          "tp": 9.0,
+          "fp": 3.0,
+          "fn": 3.0,
+          "tn": 8.0,
+          "precision_target": 0.88,
+          "meets_target": 0.0
+        }
+      }
+    }
+  ]
+}

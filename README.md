@@ -647,6 +647,17 @@ ollama pull granite3.1-moe:1b
 
 Exit code 0 means every profile met its target (legal ≥90%, PHI ≥92%, MNPI ≥88%). The integration test suite (`tests/integration/`) is gated by `OGENTIC_SHIELD_OLLAMA_INTEGRATION=1` so CI runners without Ollama still get a green build.
 
+> **Status (v0.2):** No model meets every PRD target on the current OGE-51 dataset, including the L1+L2-only baseline. Enabling Layer 3 trades precision for recall. Production callers should leave `enabled: false` for now. The full per-model comparison is in [`benchmarks/MOE_COMPARISON.md`](benchmarks/MOE_COMPARISON.md); calibration (OGE-321) and prompt-narrowing are the planned follow-ups to close the gap.
+
+To run the multi-model MoE-vs-dense comparison (used in OGE-320):
+
+```bash
+ollama pull granite3.1-moe:1b granite3-moe:3b llama3.2:3b qwen3:4b
+.venv/bin/python benchmarks/run_moe_comparison.py \
+    --json benchmarks/MOE_COMPARISON.results.json \
+    --md   benchmarks/MOE_COMPARISON.md
+```
+
 This means `ogentic-shield` works in air-gapped environments out of the box. No internet connection required for installation beyond the initial `pip install` and spaCy model download.
 
 ---
