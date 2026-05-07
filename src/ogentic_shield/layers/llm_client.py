@@ -93,7 +93,7 @@ class OllamaClient:
                 "Falling back to L1+L2 score."
             )
             return None
-        return ollama.Client(host=self._endpoint, timeout=self._timeout_s)
+        return ollama.Client(host=self._endpoint, timeout=self._timeout_s)  # type: ignore[no-any-return]
 
     @property
     def model(self) -> str:
