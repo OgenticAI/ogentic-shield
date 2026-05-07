@@ -11,9 +11,13 @@ layers:
   llm:
     enabled: false
     provider: ollama
-    model: llama3.1:8b
+    # Empty model = use ModelRegistry default for `quality` (granite3.1-moe:1b
+    # for "fast"). Set explicitly to override the registry recommendation.
+    model: ""
+    quality: fast            # fast | quality | comprehensive
     endpoint: http://localhost:11434
     timeout_ms: 5000
+    max_retries: 2
     ambiguous_score_range: [20, 60]
 
 scoring:

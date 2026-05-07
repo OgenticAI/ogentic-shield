@@ -21,6 +21,7 @@ from ogentic_shield.redaction import (
     redact_text,
     unredact_text,
 )
+from ogentic_shield.registry import ModelRegistry, ModelTier
 from ogentic_shield.shield import Shield
 
 __version__ = "0.2.0.dev0"
@@ -31,6 +32,8 @@ __all__ = [
     "CategoryGroup",
     "DetectedEntity",
     "DetectionLayer",
+    "ModelRegistry",
+    "ModelTier",
     "RedactionMapping",
     "SensitivityLevel",
     "ShieldProfile",
