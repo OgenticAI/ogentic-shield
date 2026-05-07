@@ -112,18 +112,17 @@ class TestBuildServer:
     classifier behaviour (that's covered by tests/test_shield.py).
     """
 
-    def test_registers_four_tools_with_canonical_names(self, monkeypatch):
-        # Stub Shield so build_server doesn't load Presidio.
+    def test_registers_canonical_tools(self, monkeypatch):
+        # Stub AsyncShield so build_server doesn't load Presidio.
         monkeypatch.setattr(
-            "ogentic_shield.mcp.server.Shield",
-            _StubShield,
+            "ogentic_shield.mcp.server.AsyncShield",
+            _StubAsyncShield,
         )
         server = build_server(profiles=["shield-legal"])
-        # FastMCP exposes registered tools via list_tools() (async); we
-        # use the underlying registry which is sync.
         tool_names = sorted(_collect_tool_names(server))
         assert tool_names == [
             "shield.analyze",
+            "shield.analyze_batch",
             "shield.profiles",
             "shield.redact",
             "shield.unredact",
@@ -132,24 +131,28 @@ class TestBuildServer:
     def test_default_profile_used_when_no_profiles_passed(self, monkeypatch):
         called_with: list[list[str]] = []
 
-        class CapturingShield(_StubShield):
+        class CapturingAsyncShield(_StubAsyncShield):
             def __init__(self, profiles=None, **kwargs):  # noqa: ARG002
                 called_with.append(list(profiles or []))
                 super().__init__(profiles=profiles)
 
-        monkeypatch.setattr("ogentic_shield.mcp.server.Shield", CapturingShield)
+        monkeypatch.setattr(
+            "ogentic_shield.mcp.server.AsyncShield", CapturingAsyncShield
+        )
         build_server()
         assert called_with == [[DEFAULT_PROFILE]]
 
     def test_loads_multiple_profiles_when_passed(self, monkeypatch):
         called_with: list[list[str]] = []
 
-        class CapturingShield(_StubShield):
+        class CapturingAsyncShield(_StubAsyncShield):
             def __init__(self, profiles=None, **kwargs):  # noqa: ARG002
                 called_with.append(list(profiles or []))
                 super().__init__(profiles=profiles)
 
-        monkeypatch.setattr("ogentic_shield.mcp.server.Shield", CapturingShield)
+        monkeypatch.setattr(
+            "ogentic_shield.mcp.server.AsyncShield", CapturingAsyncShield
+        )
         build_server(profiles=["shield-legal", "shield-therapy"])
         assert called_with == [["shield-legal", "shield-therapy"]]
 
@@ -295,10 +298,35 @@ class _StubShield:
             routing_suggestion="CLOUD_OK",
         )
 
+    def analyze_batch(self, texts, profiles=None, layers=None, min_confidence=None, max_workers=4):  # noqa: ARG002
+        return [self.analyze(t, profiles=profiles) for t in texts]
+
     def redact(self, text, profile=None, redact_categories=None, **_kwargs):  # noqa: ARG002
         from ogentic_shield.models import RedactionMapping
 
         return text, RedactionMapping(profile_id=profile or "shield-legal")
+
+
+class _StubAsyncShield:
+    """A drop-in replacement for `AsyncShield` that doesn't load Presidio."""
+
+    def __init__(self, profiles=None, **_kwargs):
+        self._profiles = profiles or []
+        self._stub = _StubShield(profiles=profiles)
+
+    @property
+    def shield(self):
+        return self._stub
+
+    async def analyze(self, text, profiles=None, **kwargs):  # noqa: ARG002
+        return self._stub.analyze(text, profiles=profiles)
+
+    async def redact(self, text, profile=None, redact_categories=None, **_kwargs):  # noqa: ARG002
+        return self._stub.redact(text, profile=profile)
+
+    @staticmethod
+    async def unredact(text, mapping):  # noqa: ARG004
+        return text
 
 
 def _collect_tool_names(server) -> list[str]:

@@ -1,7 +1,9 @@
 """ogentic-shield: Regulatory sensitivity detection for AI applications."""
 
+from ogentic_shield.async_shield import AsyncShield, StreamEvent
 from ogentic_shield.models import (
     AnalysisResult,
+    BatchItemError,
     CategoryGroup,
     DetectedEntity,
     DetectionLayer,
@@ -28,7 +30,10 @@ __version__ = "0.2.0.dev0"
 
 __all__ = [
     "Shield",
+    "AsyncShield",
+    "StreamEvent",
     "AnalysisResult",
+    "BatchItemError",
     "CategoryGroup",
     "DetectedEntity",
     "DetectionLayer",

@@ -144,10 +144,12 @@ All `ogentic-*` projects are Apache 2.0 licensed.
 | Routing suggestions (LOCAL_ONLY/REDACT_CLOUD/CLOUD_OK) | Yes | Advisory, not enforcement |
 | **Interfaces** | | |
 | Python library | Yes | `from ogentic_shield import Shield` |
+| Async API + streaming | Yes | `AsyncShield.analyze()` / `analyze_stream()` for non-blocking UI integration |
+| Batch API | Yes | `Shield.analyze_batch()` with parallel processing and per-item error containment |
 | CLI tool | Yes | `ogentic-shield analyze`, `ogentic-shield profiles` |
 | JSON / table / summary output | Yes | Pipe-friendly JSON, Rich tables, one-line summary |
-| MCP server | Planned | v0.2 |
-| HTTP API (FastAPI) | Planned | v0.2 |
+| MCP server | Yes | `shield.{analyze, analyze_batch, redact, unredact, profiles}` async tools |
+| HTTP API (FastAPI) | Planned | v0.3 |
 | **Privacy** | | |
 | Fully offline (zero network calls) | Yes | Layers 1 and 2 |
 | No telemetry or analytics | Yes | By design |
@@ -591,6 +593,48 @@ shield.required_models()              # ['phi4:14b']
 
 Confidence scores from Layer 3 are calibrated against the L1+L2 baseline (raw model confidence is multiplied by `0.85` before merging into the entity stream — LLMs are systematically over-confident relative to corpus-tuned regex/NER thresholds). Raw confidence is preserved in `entity.metadata["raw_confidence"]` for debugging.
 
+### Async + batch APIs
+
+Shield ships in three flavors:
+
+- **`Shield`** — sync, the default. Best for scripts and the CLI.
+- **`AsyncShield`** — coroutine-friendly wrapper. Dispatches each call through `asyncio.to_thread` so a busy event loop (MCP server, web app) stays responsive.
+- **`Shield.analyze_batch`** — parallel multi-text analysis with per-item error containment.
+
+```python
+import asyncio
+from ogentic_shield import AsyncShield, BatchItemError, Shield
+
+# Async — non-blocking, returns the same AnalysisResult shape
+async def main():
+    shield = AsyncShield(profiles=["shield-finance"])
+    result = await shield.analyze("MNPI: pending acquisition of TargetCo at $4.2B.")
+    print(result.score, result.routing_suggestion)
+
+    # Streaming — yields a StreamEvent after each layer completes
+    async for event in shield.analyze_stream(text):
+        if event.is_final:
+            print("done:", event.result.score)
+        else:
+            print(f"after {event.layer.value}: {len(event.entities)} entities so far")
+
+asyncio.run(main())
+
+# Batch — list-in, list-out, results align positionally with input
+shield = Shield(profiles=["shield-finance"])
+results = shield.analyze_batch(
+    ["text 1", "text 2", "text 3"],
+    max_workers=4,
+)
+for i, item in enumerate(results):
+    if isinstance(item, BatchItemError):
+        print(f"input {i} failed: {item.error_type}: {item.error}")
+    else:
+        print(f"input {i}: score={item.score}")
+```
+
+The MCP server uses `AsyncShield` natively — tools like `shield.analyze` and the new `shield.analyze_batch` are async, so MCP clients (Claude Desktop, Goose, Cursor) get non-blocking calls without `asyncio.to_thread` wrapping.
+
 ### Verifying Layer 3 against the benchmark targets
 
 The labelled JSONL datasets under `benchmarks/` are the precision oracle. To verify Layer 3 against PRD §8 targets locally:
@@ -684,6 +728,9 @@ Not yet in v0.1. A Docker image is planned for v0.2 alongside the HTTP API serve
 | Layer 3: Local LLM classification via Ollama | v0.2.0 | Shipped |
 | `ModelRegistry` + `Shield.required_models()` (fast / quality / comprehensive) | v0.2.0 | Shipped |
 | Profile-tuned LLM prompts (legal, therapy, finance) | v0.2.0 | Shipped |
+| `AsyncShield` + `analyze_stream()` for non-blocking UI integration | v0.2.0 | Shipped |
+| `Shield.analyze_batch()` with parallel processing and per-item error containment | v0.2.0 | Shipped |
+| MCP server tools fully async (`shield.analyze_batch` added) | v0.2.0 | Shipped |
 | MCP server (`shield.analyze`, `shield.redact`, `shield.profiles`) | v0.2.0 | Planned |
 | Audit event emission for ogentic-audit | v0.2.0 | Planned |
 | Custom profile loading from YAML | v0.2.0 | Planned |

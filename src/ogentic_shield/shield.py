@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from ogentic_shield.config import ShieldConfig, load_config
 from ogentic_shield.models import (
     AnalysisResult,
+    BatchItemError,
     DetectionLayer,
     RedactionMapping,
     ShieldProfile,
@@ -144,6 +146,67 @@ class Shield:
     def unredact(text: str, mapping: RedactionMapping) -> str:
         """Restore tokens in ``text`` to their original values using ``mapping``."""
         return unredact_text(text, mapping)
+
+    def analyze_batch(
+        self,
+        texts: list[str],
+        profiles: list[str] | None = None,
+        layers: list[DetectionLayer] | None = None,
+        min_confidence: float | None = None,
+        max_workers: int = 4,
+    ) -> list[AnalysisResult | BatchItemError]:
+        """Analyze multiple texts in parallel, preserving input order.
+
+        Per OGE-319: results align positionally with ``texts``; an exception
+        on any single input is captured as :class:`BatchItemError` at that
+        index instead of aborting the batch.
+
+        Args:
+            texts: Inputs to analyze. Empty list returns ``[]``.
+            profiles: Profile-id override applied to every text in the batch.
+            layers: Detection-layer override applied to every text.
+            min_confidence: Minimum entity confidence override.
+            max_workers: ThreadPoolExecutor worker count. Layers 1+2 are
+                CPU-bound but spaCy / Presidio release the GIL during their
+                C-extension hot paths, so threads still help. Use a value
+                near your physical core count for best throughput.
+
+        Returns:
+            List of :class:`AnalysisResult` (success) or
+            :class:`BatchItemError` (failure), one per input.
+        """
+        if not texts:
+            return []
+        if max_workers < 1:
+            raise ValueError("max_workers must be >= 1")
+
+        results: list[AnalysisResult | BatchItemError] = [None] * len(texts)  # type: ignore[list-item]
+
+        def _one(index: int, text: str) -> AnalysisResult | BatchItemError:
+            try:
+                return self.analyze(
+                    text,
+                    profiles=profiles,
+                    layers=layers,
+                    min_confidence=min_confidence,
+                )
+            except Exception as exc:  # noqa: BLE001 — per-item containment is the contract
+                logger.warning("analyze_batch item %d failed: %s", index, exc)
+                return BatchItemError(
+                    index=index,
+                    error=str(exc),
+                    error_type=exc.__class__.__name__,
+                )
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(_one, idx, text): idx
+                for idx, text in enumerate(texts)
+            }
+            for future in futures:
+                idx = futures[future]
+                results[idx] = future.result()
+        return results
 
     def required_models(self, tier: str | ModelTier | None = None) -> list[str]:
         """List Ollama models a consumer should ``ollama pull`` before enabling Layer 3.
