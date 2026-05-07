@@ -43,6 +43,7 @@ Detect attorney-client privilege, HIPAA PHI, financial MNPI, and 50+ PII types *
 - [CLI](#cli)
 - [Python API](#python-api)
 - [Redaction (Detection &ne; Redaction)](#redaction-detection--redaction)
+- [MCP Server](#mcp-server)
 - [Configuration](#configuration)
 - [Offline by Default](#offline-by-default)
 - [Frequently Asked Questions](#frequently-asked-questions)
@@ -470,6 +471,56 @@ redacted, mapping = shield.redact(text, redact_categories=["INSTITUTION_NAME", "
 ```
 
 Available labels: `Person`, `Address`, `Sponsor`, `Email`, `Phone`, `Ssn`, `DateOfBirth`, `InsuranceId`, `MedicalLicense`, `CaseNumber`, `BatesNumber`, `Diagnosis`, `Medication`, `CreditCard`, `BankNumber`, `Url`, `IpAddress`, `Passport`, `Itin`, `DriverLicense`, `DateTime`, `Iban`, `Nationality`.
+
+---
+
+## MCP Server
+
+`ogentic-shield` ships an [MCP](https://modelcontextprotocol.io) server so LLM clients (Claude Desktop, Goose, Cursor, custom agents) can call into the same pipeline as the CLI &mdash; classify or redact text inline before forwarding it to a foundation model.
+
+```bash
+# Optional dep — installs the model-context-protocol Python SDK
+pip install 'ogentic-shield[mcp]'
+
+# Run over stdio (Claude Desktop, Goose, Cursor)
+ogentic-shield serve --profile shield-legal
+
+# Run over SSE (network clients; loopback by default)
+ogentic-shield serve --transport sse --port 8765 --profile shield-finance
+
+# Multiple profiles loaded; pick one per call
+ogentic-shield serve --profile shield-legal --profile shield-therapy
+```
+
+Equivalent module form: `python -m ogentic_shield.mcp --profile shield-legal`.
+
+### Tools registered
+
+| Tool | Purpose |
+|------|---------|
+| `shield.analyze` | Classify text. Returns score, level, routing suggestion, and shape-only entities (no raw matched text by default). |
+| `shield.redact` | Substitute identifying entities with deterministic tokens. Returns `redacted_text` and a reversible `mapping`. |
+| `shield.unredact` | Restore tokens in (model-rewritten) text using the mapping returned by `shield.redact`. |
+| `shield.profiles` | List loaded profiles, supported entity categories, and the server's startup default. |
+
+### Privacy invariants
+
+- **`analyze` responses omit entity text by default.** The shape-only payload (category / confidence / span) is sufficient for routing decisions and avoids leaking the very content we're trying to protect. Opt in per call with `include_entities=true` for local debugging.
+- **Profile names are an allow-list.** Only `shield-legal`, `shield-therapy`, and `shield-finance` are accepted; an unknown profile name raises rather than silently loading attacker-supplied YAML.
+- **No raw text is logged.** Same `safe_emit` discipline as the rest of the codebase &mdash; tool exceptions surface as MCP errors; the server stays up.
+
+### Claude Desktop config
+
+```json
+{
+  "mcpServers": {
+    "ogentic-shield": {
+      "command": "ogentic-shield",
+      "args": ["serve", "--profile", "shield-legal"]
+    }
+  }
+}
+```
 
 ---
 
