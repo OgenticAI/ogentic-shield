@@ -42,10 +42,15 @@ from ogentic_shield.profiles import list_profiles
 
 logger = logging.getLogger("ogentic_shield.mcp")
 
-# The set of profiles the server is willing to load on demand. Locked down to
-# the three v0.2 profiles so a hostile client can't ask the server to load an
-# attacker-controlled YAML by name.
-_KNOWN_PROFILES: set[str] = {"shield-legal", "shield-therapy", "shield-finance"}
+# The set of profiles the server is willing to load on demand. Locked down so
+# a hostile client can't ask the server to load an attacker-controlled YAML by
+# name. shield-therapy-pro is the OGE-355 extension of shield-therapy.
+_KNOWN_PROFILES: set[str] = {
+    "shield-legal",
+    "shield-therapy",
+    "shield-therapy-pro",
+    "shield-finance",
+}
 
 # Default tool-input shape for the model: only the text we're classifying needs
 # to be required. Profile + flags are optional with sensible defaults.

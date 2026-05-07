@@ -41,6 +41,11 @@ _ENTITY_CATEGORY_GROUP: dict[str, CategoryGroup] = {
     "PROVIDER_NAME": CategoryGroup.PHI,
     "SSN": CategoryGroup.PII,
     "PSYCHOTHERAPY_NOTE_MARKER": CategoryGroup.PHI,
+    # Therapy-pro (OGE-355)
+    "DSM5_DIAGNOSIS": CategoryGroup.PHI,
+    "CPT_CODE": CategoryGroup.PHI,
+    "MINOR_CLIENT_MARKER": CategoryGroup.PHI,
+    "TRAUMA_INDICATOR": CategoryGroup.PHI,
     # Finance
     "MNPI_MARKER": CategoryGroup.MNPI,
     "MA_ACTIVITY": CategoryGroup.MNPI,

@@ -82,6 +82,12 @@ DATASETS = [
         "precision_target": 0.92,
     },
     {
+        "name": "therapy_phi_pro",
+        "jsonl": BENCHMARKS_DIR / "therapy_phi_pro.jsonl",
+        "profile_id": "shield-therapy-pro",
+        "precision_target": 0.92,
+    },
+    {
         "name": "finance_mnpi",
         "jsonl": BENCHMARKS_DIR / "finance_mnpi.jsonl",
         "profile_id": "shield-finance",
