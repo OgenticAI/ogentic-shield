@@ -1,6 +1,13 @@
 """ogentic-shield: Regulatory sensitivity detection for AI applications."""
 
 from ogentic_shield.async_shield import AsyncShield, StreamEvent
+from ogentic_shield.calibration import (
+    CalibrationMethod,
+    Calibrator,
+    LayerCalibration,
+    get_calibrator,
+    set_calibrator,
+)
 from ogentic_shield.models import (
     AnalysisResult,
     BatchItemError,
@@ -34,18 +41,23 @@ __all__ = [
     "StreamEvent",
     "AnalysisResult",
     "BatchItemError",
+    "CalibrationMethod",
+    "Calibrator",
     "CategoryGroup",
     "DetectedEntity",
     "DetectionLayer",
+    "LayerCalibration",
     "ModelRegistry",
     "ModelTier",
     "RedactionMapping",
     "SensitivityLevel",
     "ShieldProfile",
+    "get_calibrator",
     "list_profiles",
     "load_profile_from_yaml",
     "register_profile",
     "redact_text",
+    "set_calibrator",
     "unredact_text",
     "CATEGORY_LABEL_TO_ENTITY_TYPES",
     "DEFAULT_REDACT_CATEGORIES",

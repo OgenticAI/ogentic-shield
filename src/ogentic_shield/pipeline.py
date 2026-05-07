@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
+from dataclasses import replace
 
+from ogentic_shield.calibration import Calibrator, get_calibrator
 from ogentic_shield.layers.regex_ner import run_layer1
 from ogentic_shield.layers.rules import run_layer2
 from ogentic_shield.models import (
@@ -48,6 +50,35 @@ def _should_run_llm(
     return ambiguous_range[0] <= score <= ambiguous_range[1], score
 
 
+def _calibrate_entities(
+    entities: list[DetectedEntity],
+    calibrator: Calibrator,
+) -> list[DetectedEntity]:
+    """Rewrite each entity's ``confidence`` to the calibrated value.
+
+    Identity-fallback layers (no calibration registered) pass through
+    unchanged so this is safe to call even when the user has installed
+    a partial calibrator. The original raw confidence is preserved at
+    ``entity.metadata['raw_confidence']`` for debugging — Layer 3 already
+    does this; Layers 1 and 2 only stash it when calibration moves the
+    value.
+    """
+    out: list[DetectedEntity] = []
+    for entity in entities:
+        if not calibrator.has(entity.detection_layer):
+            out.append(entity)
+            continue
+        calibrated = calibrator.apply(entity.confidence, entity.detection_layer)
+        if calibrated == entity.confidence:
+            out.append(entity)
+            continue
+        meta = dict(entity.metadata)
+        # Don't clobber a raw_confidence already set by Layer 3.
+        meta.setdefault("raw_confidence", entity.confidence)
+        out.append(replace(entity, confidence=calibrated, metadata=meta))
+    return out
+
+
 def build_analysis_result(
     text: str,
     entities: list[DetectedEntity],
@@ -55,6 +86,7 @@ def build_analysis_result(
     layers_invoked: list[DetectionLayer],
     min_confidence: float,
     started_at: float,
+    calibrator: Calibrator | None = None,
 ) -> AnalysisResult:
     """Final score + level + routing assembly.
 
@@ -62,8 +94,15 @@ def build_analysis_result(
     (:meth:`ogentic_shield.async_shield.AsyncShield.analyze_stream`) gets the
     same authoritative result without re-running the layers. ``started_at``
     is a ``time.perf_counter()`` value taken at the start of the analysis.
+
+    Calibration (OGE-321) is applied here, before the ``min_confidence``
+    filter, so that ``min_confidence`` always compares against calibrated
+    values — the same scale the caller's threshold was tuned against.
     """
-    final = [e for e in entities if e.confidence >= min_confidence]
+    cal = calibrator if calibrator is not None else get_calibrator()
+    calibrated_entities = _calibrate_entities(entities, cal)
+
+    final = [e for e in calibrated_entities if e.confidence >= min_confidence]
     final.sort(key=lambda e: e.start)
 
     score = calculate_score(final, profiles)

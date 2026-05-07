@@ -31,12 +31,11 @@ logger = logging.getLogger("ogentic_shield.layers.llm_client")
 
 _TModel = TypeVar("_TModel", bound=BaseModel)
 
-# LLMs are systematically over-confident relative to regex/NER calibration in
-# the rest of the pipeline (which uses corpus-tuned thresholds). The 0.85
-# multiplier is the v0.2 baseline — broader confidence calibration framework
-# is OGE-321. Bumping or lowering this constant should be paired with a fresh
-# benchmarks/run_layer3_benchmark.py run.
-CONFIDENCE_CALIBRATION_FACTOR = 0.85
+# Note: the v0.2 baseline used a hardcoded ``CONFIDENCE_CALIBRATION_FACTOR``
+# multiplier here. OGE-321 promoted that to a proper per-layer calibration
+# framework — see :mod:`ogentic_shield.calibration`. Layer 3 entities are now
+# constructed with raw model confidence; the pipeline applies calibration
+# centrally in :func:`ogentic_shield.pipeline.build_analysis_result`.
 
 _LOCALHOST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "[::1]"})
 
@@ -190,5 +189,4 @@ class _ConnectionLikeError(RuntimeError):
 __all__ = [
     "OllamaClient",
     "LocalhostOnlyError",
-    "CONFIDENCE_CALIBRATION_FACTOR",
 ]

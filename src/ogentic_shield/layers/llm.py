@@ -21,7 +21,6 @@ import time
 from typing import Any
 
 from ogentic_shield.layers.llm_client import (
-    CONFIDENCE_CALIBRATION_FACTOR,
     LocalhostOnlyError,
     OllamaClient,
 )
@@ -145,20 +144,21 @@ def _to_entity(
         return None
 
     span_end = span_start + len(detection.span_text)
-    calibrated = max(0.0, min(1.0, detection.confidence * CONFIDENCE_CALIBRATION_FACTOR))
+    # Layer 3 emits raw model confidence; pipeline.build_analysis_result
+    # applies the per-layer calibration centrally (OGE-321).
+    raw_confidence = max(0.0, min(1.0, detection.confidence))
 
     return DetectedEntity(
         text=detection.span_text,
         category=detection.category,
         category_group=group,
-        confidence=calibrated,
+        confidence=raw_confidence,
         detection_layer=DetectionLayer.LLM,
         start=span_start,
         end=span_end,
         metadata={
             "model": model,
             "profile": profile_id,
-            "raw_confidence": detection.confidence,
             "reasoning": detection.reasoning,
         },
     )

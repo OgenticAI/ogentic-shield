@@ -21,7 +21,6 @@ from ogentic_shield.layers import llm as llm_module
 from ogentic_shield.layers import llm_client as llm_client_module
 from ogentic_shield.layers.llm import run_layer3
 from ogentic_shield.layers.llm_client import (
-    CONFIDENCE_CALIBRATION_FACTOR,
     LocalhostOnlyError,
     OllamaClient,
     _validate_localhost,
@@ -273,10 +272,9 @@ class TestRunLayer3:
         assert entity.category_group == CategoryGroup.PRIVILEGE
         assert entity.start == text.index("work product")
         assert entity.end == entity.start + len("work product")
-        # Confidence is calibrated, not raw.
-        assert entity.confidence == pytest.approx(0.9 * CONFIDENCE_CALIBRATION_FACTOR)
-        # Raw stays in metadata for debugging.
-        assert entity.metadata["raw_confidence"] == 0.9
+        # Layer 3 emits raw confidence; the central pipeline calibration in
+        # build_analysis_result handles per-layer scaling (OGE-321).
+        assert entity.confidence == pytest.approx(0.9)
         assert entity.metadata["model"] == "granite3.1-moe:1b"
         assert entity.metadata["profile"] == "shield-legal"
 
@@ -447,5 +445,7 @@ class TestLayerModuleInvariants:
         assert callable(llm_module.run_layer3)
         assert "run_layer3" in llm_module.__all__
 
-    def test_calibration_constant_in_range(self):
-        assert 0.5 <= llm_client_module.CONFIDENCE_CALIBRATION_FACTOR <= 1.0
+    def test_llm_client_no_longer_exposes_calibration_constant(self):
+        # OGE-321 removed the hardcoded multiplier in favor of the central
+        # calibration framework. Make sure nothing re-imports it.
+        assert not hasattr(llm_client_module, "CONFIDENCE_CALIBRATION_FACTOR")
