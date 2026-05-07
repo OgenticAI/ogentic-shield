@@ -15,6 +15,7 @@ from ogentic_shield.pipeline import run_pipeline
 from ogentic_shield.profiles import get_profile
 from ogentic_shield.profiles import list_profiles as _list_profiles
 from ogentic_shield.redaction import redact_text, unredact_text
+from ogentic_shield.registry import ROLE_CLASSIFICATION, ModelRegistry, ModelTier
 
 logger = logging.getLogger("ogentic_shield")
 
@@ -29,11 +30,20 @@ class Shield:
         self,
         profiles: list[str] | None = None,
         config: ShieldConfig | None = None,
+        quality: str | ModelTier | None = None,
+        model_override: dict[str, str] | None = None,
     ):
         self._config = config or load_config()
         profile_ids = profiles or self._config.profiles
         self._profiles: list[ShieldProfile] = [get_profile(pid) for pid in profile_ids]
         self._profile_ids = profile_ids
+
+        # Quality/registry resolution: explicit kwarg wins; otherwise inherit
+        # from LlmConfig.quality (which itself defaults to "fast"). The
+        # registry is held on the instance so consumers can call
+        # ``shield.required_models()`` without re-deriving overrides.
+        self._quality = quality if quality is not None else self._config.llm.quality
+        self._registry = ModelRegistry(overrides=model_override)
 
         logger.info("Shield initialized with profiles: %s", ", ".join(profile_ids))
 
@@ -74,12 +84,18 @@ class Shield:
             if self._config.llm.enabled:
                 layers.append(DetectionLayer.LLM)
 
+        # Resolve model: explicit `LlmConfig.model` overrides registry pick.
+        resolved_model = self._config.llm.model or self._registry.get(
+            ROLE_CLASSIFICATION, self._quality
+        )
         llm_config = {
             "enabled": self._config.llm.enabled,
             "provider": self._config.llm.provider,
-            "model": self._config.llm.model,
+            "model": resolved_model,
             "endpoint": self._config.llm.endpoint,
             "timeout_ms": self._config.llm.timeout_ms,
+            "max_retries": self._config.llm.max_retries,
+            "quality": self._quality,
             "ambiguous_score_range": self._config.llm.ambiguous_score_range,
         }
 
@@ -128,6 +144,16 @@ class Shield:
     def unredact(text: str, mapping: RedactionMapping) -> str:
         """Restore tokens in ``text`` to their original values using ``mapping``."""
         return unredact_text(text, mapping)
+
+    def required_models(self, tier: str | ModelTier | None = None) -> list[str]:
+        """List Ollama models a consumer should ``ollama pull`` before enabling Layer 3.
+
+        Defaults to the ``quality`` chosen at Shield init. Substitutes any
+        ``model_override`` passed at construction time. Used by downstream
+        consumers (Sotto Desktop, Zing Browser, Zashboard, Gyri) so model
+        selection logic lives in exactly one place.
+        """
+        return self._registry.required_models(tier if tier is not None else self._quality)
 
     @staticmethod
     def list_profiles() -> list[ShieldProfile]:

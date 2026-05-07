@@ -8,7 +8,7 @@ output: JSON (entities with confidence, score, sensitivity level, routing sugges
 sdk: Python
 requirements: Python 3.10+, spaCy en_core_web_lg model
 pricing: open-source (Apache 2.0), no enterprise tier
-key-differentiators: [extends Presidio with 30 domain-specific recognizers, 3-layer pipeline (regex/NER + rules + LLM stub), composable profiles for legal/therapy/finance, fully offline — zero network calls, advisory routing suggestions, 198 passing tests]
+key-differentiators: [extends Presidio with 30 domain-specific recognizers, 4-layer pipeline (regex/NER + rules + localhost-Ollama LLM), composable profiles for legal/therapy/finance, fully offline — zero network calls (LLM is localhost-only), advisory routing suggestions, 250+ passing tests]
 -->
 
 # ogentic-shield
@@ -135,7 +135,8 @@ All `ogentic-*` projects are Apache 2.0 licensed.
 | **Pipeline** | | |
 | Layer 1: Regex + NER (&lt;50ms) | Yes | [Presidio](https://github.com/microsoft/presidio) engine with custom recognizers |
 | Layer 2: Context-aware rules engine (&lt;10ms) | Yes | Confidence boosting via co-occurrence |
-| Layer 3: Local LLM classification | Stub | v0.2 &mdash; Ollama integration |
+| Layer 3: Local LLM classification | Yes | Localhost Ollama, profile-tuned prompts, structured JSON output, retry + graceful fallback |
+| Quality tiers + `Shield.required_models()` | Yes | `fast` / `quality` / `comprehensive`, with per-role overrides |
 | Overlap resolution (longest span, highest confidence) | Yes | With category-group priority tiebreaker |
 | **Scoring & Routing** | | |
 | Weighted sensitivity scoring (0&ndash;100) | Yes | Profile-driven, composable weights |
@@ -280,10 +281,12 @@ Input Text
                    |
                    v
 +-------------------------------------+
-| Layer 3: LLM (opt-in, v0.2)         |
+| Layer 3: LLM (opt-in)                |
 |                                      |
-| Local Ollama only — never cloud      |
-| Only for ambiguous score range       |
+| Localhost Ollama only — never cloud  |
+| Profile-tuned prompts, structured    |
+| JSON output, runs only on            |
+| ambiguous L1+L2 scores               |
 +------------------+-------------------+
                    |
                    v
@@ -542,9 +545,11 @@ layers:
   llm:
     enabled: false              # opt-in only; requires ollama
     provider: ollama
-    model: llama3.1:8b
-    endpoint: http://localhost:11434
+    model: ""                    # empty = use ModelRegistry default for `quality`
+    quality: fast                # fast | quality | comprehensive
+    endpoint: http://localhost:11434  # MUST be localhost — enforced at startup
     timeout_ms: 5000
+    max_retries: 2
     ambiguous_score_range: [20, 60]
 
 scoring:
@@ -561,7 +566,42 @@ output:
 
 ## Offline by Default
 
-Layers 1 and 2 make **zero network calls**. No telemetry, no analytics, no cloud APIs. Everything runs on your machine. Layer 3 (LLM, coming in v0.2) calls localhost Ollama only &mdash; never an external endpoint.
+Layers 1 and 2 make **zero network calls**. No telemetry, no analytics, no cloud APIs. Everything runs on your machine. Layer 3 (LLM, opt-in) calls **localhost Ollama only** &mdash; never an external endpoint. The endpoint is validated at config-load time and at client construction; any non-localhost host raises `LocalhostOnlyError` so a typo can't quietly send traffic offsite.
+
+### Quality tiers and the model registry
+
+Shield ships a `ModelRegistry` so downstream consumers (Sotto Desktop, Zing Browser, Zashboard, Gyri, any MCP client) don't each re-derive which Ollama models to pre-pull:
+
+```python
+from ogentic_shield import Shield, ModelTier
+
+shield = Shield(profiles=["shield-legal"], quality="fast")
+shield.required_models()              # ['granite3.1-moe:1b']
+shield.required_models("quality")     # ['mixtral:8x7b']
+shield.required_models("comprehensive")  # ['mixtral:8x7b', 'qwen3:4b']
+
+# Per-role override — substitutes Shield's pick for the model you've standardized on:
+shield = Shield(
+    profiles=["shield-legal"],
+    quality="fast",
+    model_override={"classification": "phi4:14b"},
+)
+shield.required_models()              # ['phi4:14b']
+```
+
+Confidence scores from Layer 3 are calibrated against the L1+L2 baseline (raw model confidence is multiplied by `0.85` before merging into the entity stream — LLMs are systematically over-confident relative to corpus-tuned regex/NER thresholds). Raw confidence is preserved in `entity.metadata["raw_confidence"]` for debugging.
+
+### Verifying Layer 3 against the benchmark targets
+
+The labelled JSONL datasets under `benchmarks/` are the precision oracle. To verify Layer 3 against PRD §8 targets locally:
+
+```bash
+ollama serve &
+ollama pull granite3.1-moe:1b
+.venv/bin/python benchmarks/run_layer3_benchmark.py
+```
+
+Exit code 0 means every profile met its target (legal ≥90%, PHI ≥92%, MNPI ≥88%). The integration test suite (`tests/integration/`) is gated by `OGENTIC_SHIELD_OLLAMA_INTEGRATION=1` so CI runners without Ollama still get a green build.
 
 This means `ogentic-shield` works in air-gapped environments out of the box. No internet connection required for installation beyond the initial `pip install` and spaCy model download.
 
@@ -641,7 +681,9 @@ Not yet in v0.1. A Docker image is planned for v0.2 alongside the HTTP API serve
 | 198 passing tests | v0.1.0 | Shipped |
 | Category-aware `redact()` / `unredact()` API | v0.2.0 | Shipped |
 | Per-profile redact-category defaults | v0.2.0 | Shipped |
-| Layer 3: Local LLM classification via Ollama | v0.2.0 | Planned |
+| Layer 3: Local LLM classification via Ollama | v0.2.0 | Shipped |
+| `ModelRegistry` + `Shield.required_models()` (fast / quality / comprehensive) | v0.2.0 | Shipped |
+| Profile-tuned LLM prompts (legal, therapy, finance) | v0.2.0 | Shipped |
 | MCP server (`shield.analyze`, `shield.redact`, `shield.profiles`) | v0.2.0 | Planned |
 | Audit event emission for ogentic-audit | v0.2.0 | Planned |
 | Custom profile loading from YAML | v0.2.0 | Planned |
@@ -733,7 +775,10 @@ ogentic-shield/
 │   ├── layers/                # Detection layers
 │   │   ├── regex_ner.py       # Layer 1: Presidio + custom recognizers
 │   │   ├── rules.py           # Layer 2: Context-aware rules engine
-│   │   └── llm.py             # Layer 3: LLM stub (v0.2)
+│   │   ├── llm.py             # Layer 3: orchestration (run_layer3)
+│   │   ├── llm_client.py      # OllamaClient — localhost-only, retries, fallback
+│   │   ├── llm_prompts.py     # Profile-tuned prompts + few-shot examples
+│   │   └── llm_schema.py      # Pydantic schema for structured output
 │   └── cli/                   # Click CLI
 ├── tests/                     # 198 tests
 ├── examples/                  # Runnable Python API examples (basic, custom, multi-profile)
