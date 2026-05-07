@@ -20,6 +20,72 @@ from ogentic_shield.scoring import calculate_score, determine_sensitivity_level,
 logger = logging.getLogger("ogentic_shield.pipeline")
 
 
+def text_hash_for(text: str) -> str:
+    """Stable hash prefix used in AnalysisResult.text_hash. Public so the
+    streaming API can reuse it without depending on hashlib directly."""
+    return f"sha256:{hashlib.sha256(text.encode()).hexdigest()[:16]}"
+
+
+def _should_run_llm(
+    entities: list[DetectedEntity],
+    profiles: list[ShieldProfile],
+    llm_config: dict | None,
+) -> tuple[bool, int]:
+    """Layer 3 gating decision. Returns ``(should_run, current_score)``.
+
+    Reused by both the sync pipeline and the AsyncShield streaming variant
+    so they stay in lockstep. Same rules: enabled flag + score in ambiguous
+    range + no PRIVILEGE/MNPI already detected.
+    """
+    score = calculate_score(entities, profiles)
+    if not llm_config or not llm_config.get("enabled"):
+        return False, score
+    ambiguous_range = tuple(llm_config.get("ambiguous_score_range", [20, 60]))
+    has_privilege = any(e.category_group == CategoryGroup.PRIVILEGE for e in entities)
+    has_mnpi = any(e.category_group == CategoryGroup.MNPI for e in entities)
+    if has_privilege or has_mnpi:
+        return False, score
+    return ambiguous_range[0] <= score <= ambiguous_range[1], score
+
+
+def build_analysis_result(
+    text: str,
+    entities: list[DetectedEntity],
+    profiles: list[ShieldProfile],
+    layers_invoked: list[DetectionLayer],
+    min_confidence: float,
+    started_at: float,
+) -> AnalysisResult:
+    """Final score + level + routing assembly.
+
+    Extracted from :func:`run_pipeline` so the streaming path
+    (:meth:`ogentic_shield.async_shield.AsyncShield.analyze_stream`) gets the
+    same authoritative result without re-running the layers. ``started_at``
+    is a ``time.perf_counter()`` value taken at the start of the analysis.
+    """
+    final = [e for e in entities if e.confidence >= min_confidence]
+    final.sort(key=lambda e: e.start)
+
+    score = calculate_score(final, profiles)
+    top = max(final, key=lambda e: e.confidence) if final else None
+    processing_time_ms = (time.perf_counter() - started_at) * 1000
+
+    return AnalysisResult(
+        text_hash=text_hash_for(text),
+        entities=final,
+        score=score,
+        sensitivity_level=determine_sensitivity_level(score),
+        category_groups_found={e.category_group for e in final},
+        top_category=top.category if top else None,
+        top_confidence=top.confidence if top else 0.0,
+        entity_count=len(final),
+        processing_time_ms=round(processing_time_ms, 1),
+        layers_invoked=layers_invoked,
+        profile_ids=[p.id for p in profiles],
+        routing_suggestion=suggest_routing(final, score),
+    )
+
+
 def run_pipeline(
     text: str,
     profiles: list[ShieldProfile],
@@ -31,8 +97,7 @@ def run_pipeline(
 
     Layers execute in strict order: REGEX/NER → RULES → LLM (if enabled).
     """
-    start_time = time.perf_counter()
-    text_hash = f"sha256:{hashlib.sha256(text.encode()).hexdigest()[:16]}"
+    started_at = time.perf_counter()
 
     if layers is None:
         layers = [DetectionLayer.REGEX, DetectionLayer.NER, DetectionLayer.RULES]
@@ -55,53 +120,18 @@ def run_pipeline(
 
     # Layer 3: LLM (only if explicitly enabled and score is ambiguous)
     if DetectionLayer.LLM in layers:
-        score = calculate_score(entities, profiles)
-        ambiguous_range = (20, 60)
-        if llm_config and llm_config.get("enabled"):
-            ambiguous_range = tuple(llm_config.get("ambiguous_score_range", [20, 60]))
-
-        has_privilege = any(e.category_group == CategoryGroup.PRIVILEGE for e in entities)
-        has_mnpi = any(e.category_group == CategoryGroup.MNPI for e in entities)
-
-        if (
-            llm_config
-            and llm_config.get("enabled")
-            and ambiguous_range[0] <= score <= ambiguous_range[1]
-            and not has_privilege
-            and not has_mnpi
-        ):
+        should_run, score = _should_run_llm(entities, profiles, llm_config)
+        if should_run:
             from ogentic_shield.layers.llm import run_layer3
 
             entities = run_layer3(text, entities, profiles, score, llm_config)
             layers_invoked.append(DetectionLayer.LLM)
 
-    # Filter by min_confidence
-    entities = [e for e in entities if e.confidence >= min_confidence]
-
-    # Sort by start position
-    entities.sort(key=lambda e: e.start)
-
-    # Calculate results
-    score = calculate_score(entities, profiles)
-    sensitivity_level = determine_sensitivity_level(score)
-    routing = suggest_routing(entities, score)
-
-    category_groups_found = {e.category_group for e in entities}
-    top_entity = max(entities, key=lambda e: e.confidence) if entities else None
-
-    processing_time_ms = (time.perf_counter() - start_time) * 1000
-
-    return AnalysisResult(
-        text_hash=text_hash,
+    return build_analysis_result(
+        text=text,
         entities=entities,
-        score=score,
-        sensitivity_level=sensitivity_level,
-        category_groups_found=category_groups_found,
-        top_category=top_entity.category if top_entity else None,
-        top_confidence=top_entity.confidence if top_entity else 0.0,
-        entity_count=len(entities),
-        processing_time_ms=round(processing_time_ms, 1),
+        profiles=profiles,
         layers_invoked=layers_invoked,
-        profile_ids=[p.id for p in profiles],
-        routing_suggestion=routing,
+        min_confidence=min_confidence,
+        started_at=started_at,
     )

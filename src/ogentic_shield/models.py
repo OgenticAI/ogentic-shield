@@ -60,6 +60,22 @@ class AnalysisResult:
 
 
 @dataclass
+class BatchItemError:
+    """Returned by :meth:`Shield.analyze_batch` for inputs that raised.
+
+    Per OGE-319 acceptance criterion "one failure doesn't abort batch":
+    callers iterate the result list, ``isinstance(item, BatchItemError)``
+    to branch on failures. ``index`` is the position in the input list so
+    the caller can correlate; ``error`` and ``error_type`` are stringified
+    so the result list stays JSON-serializable for MCP transport.
+    """
+
+    index: int
+    error: str
+    error_type: str
+
+
+@dataclass
 class RedactionMapping:
     """Reversible mapping from redaction tokens to their original values.
 

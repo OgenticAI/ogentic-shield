@@ -31,13 +31,14 @@ from dataclasses import asdict
 from typing import Any
 
 from ogentic_shield import __version__
+from ogentic_shield.async_shield import AsyncShield
 from ogentic_shield.models import (
     AnalysisResult,
+    BatchItemError,
     DetectedEntity,
     RedactionMapping,
 )
 from ogentic_shield.profiles import list_profiles
-from ogentic_shield.shield import Shield
 
 logger = logging.getLogger("ogentic_shield.mcp")
 
@@ -156,16 +157,19 @@ def build_server(
     profile_ids = profiles or [DEFAULT_PROFILE]
     server_default_profile = profile_ids[0]
 
-    # Build a Shield up front so first call doesn't pay the full Presidio
-    # initialization cost (~300ms cold). Holds spaCy models in memory.
-    shield = Shield(profiles=profile_ids)
+    # Build an AsyncShield up front so first call doesn't pay the full
+    # Presidio initialization cost (~300ms cold). The wrapped Shield holds
+    # spaCy models in memory; AsyncShield dispatches each tool call through
+    # asyncio.to_thread so the MCP event loop stays responsive even on
+    # heavy Layer 3 calls (OGE-318).
+    async_shield = AsyncShield(profiles=profile_ids)
 
     # NB: FastMCP's constructor doesn't take a `version` kwarg in mcp>=1.x;
     # we surface __version__ via the `shield.profiles` tool response instead.
     server = FastMCP(name=name)
 
     @server.tool(name="shield.analyze")
-    def shield_analyze(
+    async def shield_analyze(
         text: str,
         profile: str | None = None,
         include_entities: bool = False,
@@ -191,11 +195,60 @@ def build_server(
         if not text:
             raise ValueError("`text` must be a non-empty string")
         active_profile = _resolve_profile(profile, server_default_profile)
-        result = shield.analyze(text, profiles=[active_profile])
+        result = await async_shield.analyze(text, profiles=[active_profile])
         return _result_to_dict(result, include_entities=include_entities)
 
+    @server.tool(name="shield.analyze_batch")
+    async def shield_analyze_batch(
+        texts: list[str],
+        profile: str | None = None,
+        include_entities: bool = False,
+        max_workers: int = 4,
+    ) -> dict[str, Any]:
+        """Analyze multiple texts in one call. Per-item failures are
+        captured (see :class:`BatchItemError`) so a single bad input doesn't
+        sink the rest of the batch (OGE-319).
+        """
+        if not isinstance(texts, list):
+            raise ValueError("`texts` must be a list of strings")
+        if not all(isinstance(t, str) and t for t in texts):
+            raise ValueError("every entry in `texts` must be a non-empty string")
+        active_profile = _resolve_profile(profile, server_default_profile)
+        # AsyncShield doesn't currently expose batch directly — use the
+        # underlying Shield's analyze_batch via to_thread to keep the loop
+        # responsive while the worker pool runs.
+        import asyncio as _asyncio
+
+        items = await _asyncio.to_thread(
+            async_shield.shield.analyze_batch,
+            texts,
+            [active_profile],
+            None,
+            None,
+            max_workers,
+        )
+        out: list[dict[str, Any]] = []
+        for item in items:
+            if isinstance(item, BatchItemError):
+                out.append(
+                    {
+                        "ok": False,
+                        "index": item.index,
+                        "error": item.error,
+                        "error_type": item.error_type,
+                    }
+                )
+            else:
+                out.append(
+                    {
+                        "ok": True,
+                        **_result_to_dict(item, include_entities=include_entities),
+                    }
+                )
+        return {"results": out}
+
     @server.tool(name="shield.redact")
-    def shield_redact(
+    async def shield_redact(
         text: str,
         profile: str | None = None,
         redact_categories: list[str] | None = None,
@@ -221,7 +274,7 @@ def build_server(
         if not text:
             raise ValueError("`text` must be a non-empty string")
         active_profile = _resolve_profile(profile, server_default_profile)
-        redacted, mapping = shield.redact(
+        redacted, mapping = await async_shield.redact(
             text,
             profile=active_profile,
             redact_categories=redact_categories,
@@ -232,7 +285,7 @@ def build_server(
         }
 
     @server.tool(name="shield.unredact")
-    def shield_unredact(text: str, mapping: dict[str, Any]) -> dict[str, str]:
+    async def shield_unredact(text: str, mapping: dict[str, Any]) -> dict[str, str]:
         """Restore tokens in ``text`` to their original values.
 
         ``mapping`` should be the dict returned by ``shield.redact``. Tokens
@@ -249,11 +302,11 @@ def build_server(
             text_hash=str(mapping.get("text_hash") or ""),
             created_at=str(mapping.get("created_at") or ""),
         )
-        restored = Shield.unredact(text, rebuilt)
+        restored = await AsyncShield.unredact(text, rebuilt)
         return {"text": restored}
 
     @server.tool(name="shield.profiles")
-    def shield_profiles() -> dict[str, Any]:
+    async def shield_profiles() -> dict[str, Any]:
         """List available shield profiles loaded on this server.
 
         Returns the static profile catalog — what profiles exist on this
@@ -285,7 +338,13 @@ def build_server(
         "ogentic-shield MCP server built: profiles=%s default=%s tools=%s",
         profile_ids,
         server_default_profile,
-        ["shield.analyze", "shield.redact", "shield.unredact", "shield.profiles"],
+        [
+            "shield.analyze",
+            "shield.analyze_batch",
+            "shield.redact",
+            "shield.unredact",
+            "shield.profiles",
+        ],
     )
     return server
 
