@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
-      - uses: OgenticAI/agent-reviewer/.github/actions/override@v1
+      - uses: OgenticAI/agent-reviewer/.github/actions/override@v2
         with:
           github_app_id: ${{ secrets.OGENTICAI_REVIEWER_APP_ID }}
           github_app_private_key: ${{ secrets.OGENTICAI_REVIEWER_APP_KEY }}
