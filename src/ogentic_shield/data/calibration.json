@@ -1,0 +1,32 @@
+{
+  "version": "v0.2.1",
+  "fitted_at": "2026-05-07T12:34:00Z",
+  "datasets": ["legal_privilege", "therapy_phi", "finance_mnpi"],
+  "notes": "v0.2.1 baseline calibration. Linear scaling per layer, derived from OGE-320 model comparison + grid search via benchmarks/fit_calibration.py. REGEX/NER/RULES are corpus-tuned by hand and pass through unchanged (factor=1.0). LLM is discounted (factor=0.7) because Layer 3 over-fires false positives in v0.2 prompts; OGE-321 follow-up will revisit once prompt-narrowing lands.",
+  "layers": {
+    "REGEX": {
+      "method": "linear",
+      "params": {"factor": 1.0},
+      "fitted_at": "2026-05-07T12:34:00Z",
+      "notes": "Regex matches are binary; Presidio's confidence is already corpus-tuned per recognizer. Pass through."
+    },
+    "NER": {
+      "method": "linear",
+      "params": {"factor": 1.0},
+      "fitted_at": "2026-05-07T12:34:00Z",
+      "notes": "spaCy NER scores via Presidio are well-calibrated against the en_core_web_lg corpus. Pass through."
+    },
+    "RULES": {
+      "method": "linear",
+      "params": {"factor": 1.0},
+      "fitted_at": "2026-05-07T12:34:00Z",
+      "notes": "Rule confidences are hand-tuned constants (typically 0.88-0.97) plus context-window boosts. Pass through."
+    },
+    "LLM": {
+      "method": "linear",
+      "params": {"factor": 0.7},
+      "fitted_at": "2026-05-07T12:34:00Z",
+      "notes": "Down from 0.85 (v0.2 baseline). Granite/Llama tested in OGE-320 over-report confidence on extracted spans; tighter discount yields better F1 alongside the v0.2 prompts. Refit via benchmarks/fit_calibration.py once OGE-321 prompt-narrowing lands."
+    }
+  }
+}

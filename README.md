@@ -591,7 +591,15 @@ shield = Shield(
 shield.required_models()              # ['phi4:14b']
 ```
 
-Confidence scores from Layer 3 are calibrated against the L1+L2 baseline (raw model confidence is multiplied by `0.85` before merging into the entity stream — LLMs are systematically over-confident relative to corpus-tuned regex/NER thresholds). Raw confidence is preserved in `entity.metadata["raw_confidence"]` for debugging.
+Confidence scores are calibrated **per layer** at the pipeline level (OGE-321). The default calibration ships at `src/ogentic_shield/data/calibration.json`: REGEX / NER / RULES pass through unchanged (factor 1.0 — Presidio confidences and hand-tuned rule constants are already corpus-calibrated), and LLM is discounted (factor 0.7) to compensate for systematic over-confidence in self-reported model probabilities. Raw confidence is preserved in `entity.metadata["raw_confidence"]` for debugging:
+
+```python
+from ogentic_shield import Calibrator, set_calibrator
+# Override the packaged default with your own corpus-fit factors:
+set_calibrator(Calibrator.from_file("my_calibration.json"))
+```
+
+The packaged factors can be refit against the OGE-51 datasets via `python benchmarks/fit_calibration.py --json calibration.json --md benchmarks/CALIBRATION_REPORT.md`. Methods supported: `linear` (the v0.2.1 default), `platt` (sigmoid fit), `isotonic` (piecewise-linear breakpoints).
 
 ### Async + batch APIs
 
