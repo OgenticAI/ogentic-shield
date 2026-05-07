@@ -19,10 +19,25 @@ DEFAULT_CONFIG_FILENAME = "ogentic-shield.yaml"
 class LlmConfig:
     enabled: bool = False
     provider: str = "ollama"
-    model: str = "llama3.1:8b"
+    # Empty model = "use ModelRegistry default for `quality`". Set explicitly
+    # only when overriding the registry recommendation.
+    model: str = ""
     endpoint: str = "http://localhost:11434"
     timeout_ms: int = 5000
+    max_retries: int = 2
+    quality: str = "fast"
     ambiguous_score_range: list[int] = field(default_factory=lambda: [20, 60])
+
+    def __post_init__(self) -> None:
+        # Localhost guardrail at config-load time so a typo in YAML fails
+        # loud at startup, not on the first analyze() that triggers Layer 3.
+        if self.enabled and self.endpoint:
+            from ogentic_shield.layers.llm_client import _validate_localhost
+
+            try:
+                _validate_localhost(self.endpoint)
+            except ValueError as exc:
+                raise ConfigError(str(exc)) from exc
 
 
 @dataclass
@@ -81,9 +96,11 @@ def load_config(path: str | Path | None = None) -> ShieldConfig:
     llm_config = LlmConfig(
         enabled=llm_data.get("enabled", False),
         provider=llm_data.get("provider", "ollama"),
-        model=llm_data.get("model", "llama3.1:8b"),
+        model=llm_data.get("model", ""),
         endpoint=llm_data.get("endpoint", "http://localhost:11434"),
         timeout_ms=llm_data.get("timeout_ms", 5000),
+        max_retries=llm_data.get("max_retries", 2),
+        quality=llm_data.get("quality", "fast"),
         ambiguous_score_range=llm_data.get("ambiguous_score_range", [20, 60]),
     )
 
