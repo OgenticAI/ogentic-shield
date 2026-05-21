@@ -314,6 +314,35 @@ def _summarize_existing(existing_entities: list[DetectedEntity], limit: int = 8)
     return "\n".join(rows)
 
 
+def narrow_allowed_categories(
+    profile_id: str,
+    existing_entities: list[DetectedEntity],
+) -> tuple[str, ...]:
+    """Compute the per-call allowed-category set for Layer 3 (OGE-396).
+
+    Layer 3 is positioned as a *complementary* classifier: it should propose
+    entities for categories the regex / NER layers didn't already cover, not
+    re-emit detections in categories L1+L2 handled correctly. Re-emission was
+    the dominant precision-tax mode measured in OGE-320 (15–30pp drop across
+    profiles, almost entirely from the LLM duplicating `COUNSEL_COMMUNICATION`,
+    `WORK_PRODUCT`, `PATIENT_NAME`, etc. that the regex layer already caught).
+
+    Returns the template's full ``allowed_categories`` minus any category that
+    already appears in ``existing_entities``. Categories outside the template
+    altogether (custom profiles, hallucinated labels) are ignored — the post-
+    filter and ``CATEGORY_TO_GROUP`` check in ``layers/llm.py`` handle those.
+
+    Returns an empty tuple if every allowed category is already covered. The
+    caller should treat that as "skip the LLM call for this profile" because
+    there's nothing left for Layer 3 to add.
+    """
+    template = PROMPTS.get(profile_id)
+    if template is None:
+        return ()
+    covered = {e.category for e in existing_entities}
+    return tuple(cat for cat in template.allowed_categories if cat not in covered)
+
+
 def build_prompt(
     profile_id: str,
     text: str,
@@ -326,15 +355,41 @@ def build_prompt(
     :func:`ogentic_shield.profiles.register_profile` won't have built-in
     prompts; that's by design — Layer 3 stays opt-in for custom domains
     until a prompt is contributed via :pep:`OGE-322`.)
+
+    Returns ``None`` *also* when every category in the profile's allow-list
+    is already covered by L1+L2 (OGE-396) — there's no remaining work for
+    Layer 3 to do, so we short-circuit before paying the model RTT.
     """
     template = PROMPTS.get(profile_id)
     if template is None:
         return None
+
+    # OGE-396: narrow the allow-list to categories L1+L2 didn't catch.
+    narrowed = narrow_allowed_categories(profile_id, existing_entities)
+    if not narrowed:
+        # L1+L2 already covered every allowed category — Layer 3 has nothing
+        # additive to contribute. Caller should skip the LLM call.
+        return None
+
+    covered_categories = sorted(
+        {e.category for e in existing_entities} & set(template.allowed_categories)
+    )
+    covered_block = (
+        "\n".join(f"- {c}" for c in covered_categories) if covered_categories else "(none)"
+    )
+
     return (
         f"{template.system_frame}\n\n"
         f"{template.few_shot}\n\n"
         f"## Existing Layer 1+2 entities (do not duplicate; corroborate or extend):\n"
         f"{_summarize_existing(existing_entities)}\n\n"
+        f"## Categories ALREADY COVERED by Layer 1+2 — do NOT re-emit:\n"
+        f"{covered_block}\n\n"
+        f"## Allowed categories for THIS call (only emit detections from this set):\n"
+        f"{', '.join(narrowed)}\n\n"
+        f"If you're unsure whether a span fits a covered category vs an allowed one, "
+        f"prefer to return an empty detection list. Layer 1+2 are the source of "
+        f"truth for the covered categories above.\n\n"
         f"## INPUT:\n{text}\n\n## OUTPUT:\n"
     )
 
@@ -344,4 +399,5 @@ __all__ = [
     "PROMPTS",
     "PromptTemplate",
     "build_prompt",
+    "narrow_allowed_categories",
 ]

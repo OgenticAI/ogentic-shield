@@ -66,10 +66,31 @@ def run_layer3(
         (e.start, e.end, e.category) for e in existing_entities
     }
 
+    # OGE-396: belt-and-braces post-filter. Even with the narrowed allow-list
+    # in the prompt, an over-eager model can still re-emit a category L1+L2
+    # already caught (especially on synthetic test inputs). Index existing
+    # entities by category so we can do a cheap overlap check below.
+    existing_by_category: dict[str, list[tuple[int, int]]] = {}
+    for e in existing_entities:
+        existing_by_category.setdefault(e.category, []).append((e.start, e.end))
+
+    def _overlaps_existing(category: str, start: int, end: int) -> bool:
+        """True iff the span overlaps any existing entity of the same category."""
+        for ex_start, ex_end in existing_by_category.get(category, ()):
+            if start < ex_end and ex_start < end:
+                return True
+        return False
+
     for profile in profiles:
         prompt = build_prompt(profile.id, text, existing_entities)
         if prompt is None:
-            logger.debug("No Layer 3 prompt template for profile '%s'; skipping.", profile.id)
+            # build_prompt returns None when (a) the profile has no template,
+            # or (b) L1+L2 already covers every category in its allow-list
+            # (OGE-396). Either way there's nothing additive Layer 3 can do.
+            logger.debug(
+                "Layer 3 has nothing to add for profile '%s' (no template or all categories covered); skipping.",
+                profile.id,
+            )
             continue
 
         response = client.classify(prompt, LlmResponse)
@@ -82,6 +103,20 @@ def run_layer3(
                 continue
             key = (entity.start, entity.end, entity.category)
             if key in seen_spans:
+                continue
+            # OGE-396: drop re-emitted detections whose category L1+L2 already
+            # covered AND whose span overlaps the existing coverage. A truly
+            # novel span of a covered category (rare — model spotted a span
+            # L1+L2 missed) is kept.
+            if _overlaps_existing(entity.category, entity.start, entity.end):
+                logger.debug(
+                    "Dropping LLM detection: category '%s' already covered by L1+L2 "
+                    "and span [%d:%d] overlaps existing coverage (profile=%s).",
+                    entity.category,
+                    entity.start,
+                    entity.end,
+                    profile.id,
+                )
                 continue
             new_entities.append(entity)
             seen_spans.add(key)

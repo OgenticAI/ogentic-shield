@@ -437,6 +437,259 @@ class TestRunLayer3:
         assert result == []
 
 
+# ── OGE-396: Layer 3 as a complementary classifier ─────────────────────────
+
+
+class TestNarrowAllowedCategories:
+    """Unit tests for the per-call allow-list scoping helper."""
+
+    def test_returns_full_set_when_no_existing_entities(self):
+        from ogentic_shield.layers.llm_prompts import (
+            PROMPTS,
+            narrow_allowed_categories,
+        )
+
+        narrowed = narrow_allowed_categories("shield-legal", [])
+        assert set(narrowed) == set(PROMPTS["shield-legal"].allowed_categories)
+
+    def test_drops_categories_already_covered_by_l1l2(self):
+        from ogentic_shield.layers.llm_prompts import narrow_allowed_categories
+
+        existing = [
+            DetectedEntity(
+                text="outside counsel",
+                category="COUNSEL_COMMUNICATION",
+                category_group=CategoryGroup.PRIVILEGE,
+                confidence=0.9,
+                detection_layer=DetectionLayer.REGEX,
+                start=0,
+                end=15,
+            ),
+            DetectedEntity(
+                text="work product",
+                category="WORK_PRODUCT",
+                category_group=CategoryGroup.PRIVILEGE,
+                confidence=0.85,
+                detection_layer=DetectionLayer.REGEX,
+                start=20,
+                end=32,
+            ),
+        ]
+        narrowed = narrow_allowed_categories("shield-legal", existing)
+        # Covered categories stripped.
+        assert "COUNSEL_COMMUNICATION" not in narrowed
+        assert "WORK_PRODUCT" not in narrowed
+        # Other allowed categories preserved.
+        assert "CASE_NUMBER" in narrowed
+        assert "BATES_NUMBER" in narrowed
+
+    def test_returns_empty_when_every_category_covered(self):
+        from ogentic_shield.layers.llm_prompts import (
+            PROMPTS,
+            narrow_allowed_categories,
+        )
+
+        # Synthesize an existing entity for every allowed category.
+        existing = [
+            DetectedEntity(
+                text=f"hit-{i}",
+                category=cat,
+                category_group=CategoryGroup.PRIVILEGE,  # group is irrelevant here
+                confidence=0.5,
+                detection_layer=DetectionLayer.REGEX,
+                start=i * 10,
+                end=i * 10 + 5,
+            )
+            for i, cat in enumerate(PROMPTS["shield-legal"].allowed_categories)
+        ]
+        assert narrow_allowed_categories("shield-legal", existing) == ()
+
+    def test_unknown_profile_returns_empty(self):
+        from ogentic_shield.layers.llm_prompts import narrow_allowed_categories
+
+        assert narrow_allowed_categories("shield-nonsense", []) == ()
+
+
+class TestBuildPromptNarrowing:
+    """The prompt itself must reflect the narrowed allow-list + covered list."""
+
+    def test_prompt_lists_only_uncovered_categories(self):
+        from ogentic_shield.layers.llm_prompts import build_prompt
+
+        existing = [
+            DetectedEntity(
+                text="outside counsel",
+                category="COUNSEL_COMMUNICATION",
+                category_group=CategoryGroup.PRIVILEGE,
+                confidence=0.9,
+                detection_layer=DetectionLayer.REGEX,
+                start=0,
+                end=15,
+            ),
+        ]
+        prompt = build_prompt("shield-legal", "outside counsel said no", existing)
+        assert prompt is not None
+        # Covered-categories block names the L1+L2 category.
+        assert "ALREADY COVERED" in prompt
+        assert "- COUNSEL_COMMUNICATION" in prompt
+        # Narrowed-categories block omits the covered one.
+        narrowed_section = prompt.split("Allowed categories for THIS call")[1]
+        assert "COUNSEL_COMMUNICATION" not in narrowed_section
+        # …but still lists uncovered categories.
+        assert "WORK_PRODUCT" in narrowed_section
+        assert "CASE_NUMBER" in narrowed_section
+
+    def test_prompt_short_circuits_when_all_categories_covered(self):
+        from ogentic_shield.layers.llm_prompts import (
+            PROMPTS,
+            build_prompt,
+        )
+
+        existing = [
+            DetectedEntity(
+                text=f"hit-{i}",
+                category=cat,
+                category_group=CategoryGroup.PRIVILEGE,
+                confidence=0.5,
+                detection_layer=DetectionLayer.REGEX,
+                start=i * 10,
+                end=i * 10 + 5,
+            )
+            for i, cat in enumerate(PROMPTS["shield-legal"].allowed_categories)
+        ]
+        assert build_prompt("shield-legal", "irrelevant text", existing) is None
+
+    def test_empty_existing_renders_none_covered_block(self):
+        from ogentic_shield.layers.llm_prompts import build_prompt
+
+        prompt = build_prompt("shield-legal", "some text", [])
+        assert prompt is not None
+        assert "ALREADY COVERED by Layer 1+2 — do NOT re-emit:\n(none)" in prompt
+
+
+class TestRunLayer3PostFilter:
+    """The run_layer3 post-filter drops re-emitted (covered, overlapping)
+    detections but keeps truly novel spans of a covered category."""
+
+    def test_drops_reemitted_overlapping_span_in_covered_category(
+        self, monkeypatch: pytest.MonkeyPatch, legal_profile_list
+    ):
+        text = "outside counsel reviewed the matter on 2026-05-21."
+        existing = [
+            DetectedEntity(
+                text="outside counsel",
+                category="COUNSEL_COMMUNICATION",
+                category_group=CategoryGroup.PRIVILEGE,
+                confidence=0.9,
+                detection_layer=DetectionLayer.REGEX,
+                start=0,
+                end=15,
+            ),
+        ]
+        # Model re-emits the same category overlapping the existing span —
+        # exactly the failure mode OGE-396 is targeting.
+        payload = json.dumps(
+            {
+                "detections": [
+                    {
+                        "category": "COUNSEL_COMMUNICATION",
+                        "span_text": "outside counsel",
+                        "confidence": 0.85,
+                        "reasoning": "duplicate emission",
+                    }
+                ]
+            }
+        )
+        _make_client(monkeypatch, [payload])
+
+        result = run_layer3(text, existing, legal_profile_list, 30, _enabled_config())
+        # The existing entity is preserved; no new LLM duplicate appended.
+        assert result == existing
+
+    def test_keeps_novel_span_even_in_covered_category(
+        self, monkeypatch: pytest.MonkeyPatch, legal_profile_list
+    ):
+        # Two distinct mentions of counsel: the first is caught by L1+L2,
+        # the second is what the LLM legitimately surfaces. The post-filter
+        # must NOT drop the second because it doesn't overlap the first.
+        text = (
+            "outside counsel reviewed in March. Separately, in-house counsel "
+            "advised on the related Q3 matter."
+        )
+        # Note: the "in-house counsel" span starts at a non-overlapping offset.
+        novel_start = text.index("in-house counsel")
+        existing = [
+            DetectedEntity(
+                text="outside counsel",
+                category="COUNSEL_COMMUNICATION",
+                category_group=CategoryGroup.PRIVILEGE,
+                confidence=0.9,
+                detection_layer=DetectionLayer.REGEX,
+                start=0,
+                end=len("outside counsel"),
+            ),
+        ]
+        payload = json.dumps(
+            {
+                "detections": [
+                    {
+                        "category": "COUNSEL_COMMUNICATION",
+                        "span_text": "in-house counsel",
+                        "confidence": 0.88,
+                        "reasoning": "L1+L2 missed this second mention",
+                    }
+                ]
+            }
+        )
+        _make_client(monkeypatch, [payload])
+
+        result = run_layer3(text, existing, legal_profile_list, 30, _enabled_config())
+        # Existing kept + LLM added the truly-novel non-overlapping span.
+        assert len(result) == 2
+        novel = result[1]
+        assert novel.category == "COUNSEL_COMMUNICATION"
+        assert novel.start == novel_start
+        assert novel.detection_layer == DetectionLayer.LLM
+
+    def test_short_circuits_llm_call_when_no_categories_remain(
+        self, monkeypatch: pytest.MonkeyPatch, legal_profile_list
+    ):
+        # Existing entities cover every allowed category for shield-legal.
+        # run_layer3 should never call the LLM — the prompt builder returns
+        # None and the loop skips the profile.
+        from ogentic_shield.layers.llm_prompts import PROMPTS
+
+        existing = [
+            DetectedEntity(
+                text=f"hit-{i}",
+                category=cat,
+                category_group=CategoryGroup.PRIVILEGE,
+                confidence=0.5,
+                detection_layer=DetectionLayer.REGEX,
+                start=i * 20,
+                end=i * 20 + 5,
+            )
+            for i, cat in enumerate(PROMPTS["shield-legal"].allowed_categories)
+        ]
+        # Script the fake to raise if called — would error the test if we
+        # accidentally invoked the LLM.
+        client, fake = _make_client(
+            monkeypatch,
+            [RuntimeError("LLM should not be called when no categories remain")],
+        )
+        del client, fake
+
+        result = run_layer3(
+            "text containing nothing new",
+            existing,
+            legal_profile_list,
+            30,
+            _enabled_config(),
+        )
+        # No new entities, no exception — proves the short-circuit fired.
+        assert result == existing
+
+
 # ── Module-level invariants ─────────────────────────────────────────────────
 
 
