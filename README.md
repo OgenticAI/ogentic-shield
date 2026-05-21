@@ -187,6 +187,24 @@ print(result.routing_suggestion)  # LOCAL_ONLY
 print(result.entities[0].category)  # COUNSEL_COMMUNICATION
 ```
 
+### Analyze a document
+
+Pass a path to `analyze_document` and get the same scoring shape with per-chunk breakdowns. **Phase 1 supports `.txt`, `.md`, and `.log`**; PDF / DOCX / XLSX / EML / MSG / HTML are recognized and emit a clear `UnsupportedDocumentFormatError` pointing at the `[documents]` extra (Phase 2 work — tracked on [OGE-398](https://linear.app/ogenticai/issue/OGE-398)).
+
+```python
+from ogentic_shield import Shield
+
+shield = Shield(profiles=["shield-legal"])
+result = shield.analyze_document("memo.txt")
+
+print(result.format)                       # "text"
+print(result.aggregate.score)              # max across chunks
+print(result.aggregate.routing_suggestion) # LOCAL_ONLY if any chunk is CRITICAL
+print(len(result.chunks))                  # per-chunk drill-down available
+```
+
+Extraction runs **in-process** on your machine. None of the document-parsing libraries phone home — the privacy contract is identical to the string-input path.
+
 ---
 
 ## Shield Profiles

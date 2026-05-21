@@ -8,6 +8,11 @@ from ogentic_shield.calibration import (
     get_calibrator,
     set_calibrator,
 )
+from ogentic_shield.documents import (
+    ChunkResult,
+    DocumentAnalysisResult,
+    UnsupportedDocumentFormatError,
+)
 from ogentic_shield.models import (
     AnalysisResult,
     BatchItemError,
@@ -44,8 +49,11 @@ __all__ = [
     "CalibrationMethod",
     "Calibrator",
     "CategoryGroup",
+    "ChunkResult",
     "DetectedEntity",
     "DetectionLayer",
+    "DocumentAnalysisResult",
+    "UnsupportedDocumentFormatError",
     "LayerCalibration",
     "ModelRegistry",
     "ModelTier",

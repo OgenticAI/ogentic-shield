@@ -4,8 +4,17 @@ from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from ogentic_shield.config import ShieldConfig, load_config
+from ogentic_shield.documents import (
+    DEFAULT_CHUNK_CHARS,
+    ChunkResult,
+    DocumentAnalysisResult,
+    aggregate_chunk_results,
+    chunk_text,
+    extract_text,
+)
 from ogentic_shield.models import (
     AnalysisResult,
     BatchItemError,
@@ -207,6 +216,90 @@ class Shield:
                 idx = futures[future]
                 results[idx] = future.result()
         return results
+
+    def analyze_document(
+        self,
+        path: str | Path,
+        *,
+        profiles: list[str] | None = None,
+        layers: list[DetectionLayer] | None = None,
+        min_confidence: float | None = None,
+        chunk_chars: int = DEFAULT_CHUNK_CHARS,
+    ) -> DocumentAnalysisResult:
+        """Analyze a document file for regulatory sensitivity (OGE-398, Phase 1).
+
+        Pass a path; get back a :class:`~ogentic_shield.documents.DocumentAnalysisResult`
+        with a whole-document aggregate plus per-chunk breakdowns. Identical
+        analysis semantics to :meth:`analyze` — same profiles, same layers,
+        same scoring; we just take care of extracting and chunking the file
+        in front of the pipeline.
+
+        Phase 1 supports the plain-text family (``.txt``, ``.md``, ``.log``).
+        Other formats recognized but not yet implemented (PDF, DOCX, XLSX,
+        EML, MSG, HTML) raise
+        :class:`~ogentic_shield.documents.UnsupportedDocumentFormatError`
+        with the install hint for the Phase-2 ``[documents]`` extra.
+
+        Args:
+            path: File path to analyze.
+            profiles: Override profile IDs for this call (default: the
+                profiles this Shield was initialized with).
+            layers: Override which detection layers to run.
+            min_confidence: Override minimum confidence threshold.
+            chunk_chars: Maximum chunk size in characters; chunks split on
+                paragraph boundaries where possible. Default 10,000
+                (≈2.5k tokens — comfortably under any Layer 3 context).
+
+        Returns:
+            :class:`DocumentAnalysisResult` with:
+
+            - ``path`` / ``format`` (the dispatcher's resolution).
+            - ``aggregate``: whole-document :class:`AnalysisResult`.
+              ``score`` is ``max`` across chunks (a single CRITICAL chunk
+              makes the whole document CRITICAL); ``entities`` are
+              concatenated with global offsets; ``category_groups_found``
+              is the union.
+            - ``chunks``: ordered list of :class:`ChunkResult` so callers
+              can drill into per-page / per-section findings.
+            - ``extraction_warnings``: empty in Phase 1; Phase 2's PDF
+              extractor will surface scanned-page warnings here.
+
+        Raises:
+            FileNotFoundError: ``path`` doesn't exist.
+            UnsupportedDocumentFormatError: format isn't supported (yet).
+        """
+        text, fmt = extract_text(path)
+        active_profile_ids = list(profiles) if profiles else list(self._profile_ids)
+
+        # Chunk, then run the existing string-analysis pipeline per chunk.
+        # We reuse self.analyze so layers / config / Layer 3 gating remain
+        # identical to what string callers get.
+        chunk_specs = chunk_text(text, chunk_chars=chunk_chars)
+        chunk_results: list[ChunkResult] = []
+        for idx, (chunk_str, label, offset) in enumerate(chunk_specs):
+            result = self.analyze(
+                chunk_str,
+                profiles=active_profile_ids,
+                layers=layers,
+                min_confidence=min_confidence,
+            )
+            chunk_results.append(
+                ChunkResult(index=idx, label=label, text_offset=offset, result=result)
+            )
+
+        aggregate = aggregate_chunk_results(
+            chunk_results,
+            full_text=text,
+            profile_ids=active_profile_ids,
+        )
+
+        return DocumentAnalysisResult(
+            path=str(path),
+            format=fmt,
+            aggregate=aggregate,
+            chunks=chunk_results,
+            extraction_warnings=[],  # Phase 2 extractors will populate this.
+        )
 
     def required_models(self, tier: str | ModelTier | None = None) -> list[str]:
         """List Ollama models a consumer should ``ollama pull`` before enabling Layer 3.
