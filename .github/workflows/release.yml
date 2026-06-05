@@ -1,0 +1,122 @@
+# Release workflow — publishes ogentic-shield to PyPI on every `v*` tag.
+#
+# Triggered manually by pushing a tag whose name starts with `v` (e.g.
+# `git tag v0.3.0 && git push origin v0.3.0`). Builds an sdist + a
+# universal wheel and uploads via PyPA's official action.
+#
+# Auth model
+# ----------
+# v0.3.0 launch: uses an API token stored as the `PYPI_API_TOKEN` org
+# secret (https://pypi.org/manage/account/token/, scoped to the
+# `ogentic-shield` project). Fastest path to "live on PyPI."
+#
+# Follow-up (OGE-588): once the project page exists, switch to PyPI
+# trusted publisher (OIDC) by configuring the (repo, workflow_filename,
+# environment) tuple under "Publishing" on the PyPI project page and
+# swapping `password: …` below for the `id-token: write` flow. See
+# RELEASING.md §3.
+#
+# Safety
+# ------
+# * Tag-triggered ONLY — no path that publishes from main.
+# * No write-to-tag, no force-push, no draft-release shenanigans.
+# * The build job uploads the wheel artifact; the publish job runs in
+#   a separate step that only pulls the artifact. If a tester wants to
+#   inspect the wheel before publish, the artifact is downloadable from
+#   the workflow run.
+# * `twine check` runs as a gate before upload — malformed metadata or
+#   broken README rendering fails the workflow before it touches PyPI.
+
+name: Release to PyPI
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build sdist + wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+      - name: Build
+        run: python -m build
+      - name: Inspect wheel contents
+        # Catches the most common packaging bug: tests/, benchmarks/,
+        # __pycache__/, or .git/ accidentally bundled into the wheel.
+        run: |
+          set -e
+          WHEEL=$(ls dist/*.whl)
+          echo "::group::Wheel manifest ($WHEEL)"
+          unzip -l "$WHEEL"
+          echo "::endgroup::"
+          # Hard-fail if anything from tests/ or benchmarks/ slipped in.
+          if unzip -l "$WHEEL" | grep -E 'tests/|benchmarks/|\.pyc$|__pycache__/'; then
+            echo "::error::Wheel contains test / cache / benchmark artifacts — fix pyproject.toml's hatch.build.targets.wheel.packages."
+            exit 1
+          fi
+      - name: twine check
+        run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # Bind to a GitHub Environment so secrets are scoped and an audit
+    # trail exists per-release. The `pypi` environment is the same name
+    # PyPI's trusted-publisher flow expects when we swap to OIDC later.
+    environment:
+      name: pypi
+      url: https://pypi.org/project/ogentic-shield/
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # API-token flow for the first release. Comment out
+          # `password` and remove `username` to switch to OIDC.
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          # The action default; explicit so future editors know what to
+          # change for TestPyPI: repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/
+
+      - name: Smoke install from PyPI
+        # PyPI's CDN propagation can lag a few seconds after upload.
+        # This step waits, then verifies the package is actually
+        # installable. Catches the "upload returned 200 but the
+        # version page never appeared" failure mode.
+        run: |
+          set -e
+          # Strip leading 'v' from the tag for the version pin.
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Smoke-testing pip install ogentic-shield==$VERSION"
+          for i in 1 2 3 4 5; do
+            if pip install "ogentic-shield==$VERSION" --no-deps --dry-run >/dev/null 2>&1; then
+              echo "✅ Available on PyPI"
+              break
+            fi
+            echo "Not yet propagated (attempt $i/5) — sleeping 15s"
+            sleep 15
+          done
+          pip install "ogentic-shield==$VERSION" --no-deps
+          python -c "import ogentic_shield; assert ogentic_shield.__version__ == '$VERSION', f'version mismatch: {ogentic_shield.__version__} != $VERSION'"
+          echo "✅ Smoke import OK at $VERSION"
