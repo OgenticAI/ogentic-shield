@@ -1,7 +1,7 @@
 """Document-analysis surface for Shield (OGE-398, Phase 1).
 
 Real-world regulated content lives in documents, not strings. Asking every
-Sotto / Privy / Zashboard integrator to write their own PDF / DOCX / XLSX
+Sotto / Zashboard integrator to write their own PDF / DOCX / XLSX
 extraction loop before they can call ``Shield.analyze`` is the wrong
 architectural choice — it duplicates work, fragments the privacy contract
 (each integrator's extractor is now an audit surface), and locks out
