@@ -101,9 +101,19 @@ jobs:
 
       - name: Smoke install from PyPI
         # PyPI's CDN propagation can lag a few seconds after upload.
-        # This step waits, then verifies the package is actually
-        # installable. Catches the "upload returned 200 but the
-        # version page never appeared" failure mode.
+        # This step waits, then verifies the published wheel is actually
+        # installable and reports the right version. Catches the
+        # "upload returned 200 but the version page never appeared"
+        # failure mode.
+        #
+        # NOTE: we install with --no-deps to keep this step fast (Shield's
+        # transitive deps include presidio + spacy + pydantic, which take
+        # ~minutes to resolve). The version check uses importlib.metadata
+        # rather than `import ogentic_shield` because the package's
+        # __init__.py eagerly imports presidio at module load — which
+        # would ImportError under --no-deps. importlib.metadata reads the
+        # installed-wheel metadata directly, so it works whether or not
+        # the package's own imports resolve.
         run: |
           set -e
           # Strip leading 'v' from the tag for the version pin.
@@ -118,5 +128,5 @@ jobs:
             sleep 15
           done
           pip install "ogentic-shield==$VERSION" --no-deps
-          python -c "import ogentic_shield; assert ogentic_shield.__version__ == '$VERSION', f'version mismatch: {ogentic_shield.__version__} != $VERSION'"
-          echo "✅ Smoke import OK at $VERSION"
+          python -c "import importlib.metadata; v = importlib.metadata.version('ogentic-shield'); assert v == '$VERSION', f'version mismatch: {v} != $VERSION'"
+          echo "✅ Smoke version check OK at $VERSION"
