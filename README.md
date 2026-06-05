@@ -72,7 +72,7 @@ On February 10, 2026, *US v. Heppner* (S.D.N.Y.) established that sending conten
 
 | Project | Purpose | Status |
 |---------|---------|--------|
-| **[`ogentic-shield`](https://github.com/OgenticAI/ogentic-shield)** | Detect privileged, clinical, and financial sensitivity in text | **v0.1.0 &mdash; Available now** |
+| **[`ogentic-shield`](https://github.com/OgenticAI/ogentic-shield)** | Detect privileged, clinical, and financial sensitivity in text | **v0.3.0 &mdash; On PyPI** |
 | `ogentic-audit` | Cryptographic, tamper-evident audit trails for AI usage | Coming soon |
 | `ogentic-router` | Privacy-aware LLM routing (sensitive &rarr; local, safe &rarr; cloud) | Coming soon |
 | `ogentic-redact` | Structure-aware document redaction for legal proceedings | Planned |

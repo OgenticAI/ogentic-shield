@@ -8,6 +8,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from ogentic_shield import __version__ as _shield_version
 from ogentic_shield.models import AnalysisResult
 
 
@@ -48,7 +49,7 @@ def format_table(result: AnalysisResult) -> None:
     layers_str = ", ".join(layer.value for layer in result.layers_invoked)
 
     table = Table(
-        title=f"ogentic-shield v0.1.0 — {profiles_str}",
+        title=f"ogentic-shield v{_shield_version} — {profiles_str}",
         caption=(
             f"Score: {result.score}/100  Level: {result.sensitivity_level.value}  "
             f"Route: {result.routing_suggestion}\n"
