@@ -11,6 +11,7 @@ from ogentic_shield.calibration import (
 from ogentic_shield.documents import (
     ChunkResult,
     DocumentAnalysisResult,
+    DocumentRedactionResult,
     UnsupportedDocumentFormatError,
 )
 from ogentic_shield.models import (
@@ -38,7 +39,7 @@ from ogentic_shield.redaction import (
 from ogentic_shield.registry import ModelRegistry, ModelTier
 from ogentic_shield.shield import Shield
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "Shield",
@@ -53,6 +54,7 @@ __all__ = [
     "DetectedEntity",
     "DetectionLayer",
     "DocumentAnalysisResult",
+    "DocumentRedactionResult",
     "UnsupportedDocumentFormatError",
     "LayerCalibration",
     "ModelRegistry",

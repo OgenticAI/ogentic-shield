@@ -52,6 +52,7 @@ from ogentic_shield.models import (
     CategoryGroup,
     DetectedEntity,
     DetectionLayer,
+    RedactionMapping,
     SensitivityLevel,
     ShieldError,
 )
@@ -107,6 +108,55 @@ class DocumentAnalysisResult:
     """Non-fatal extraction notes (e.g. ``"page 14: no extractable text —
     likely scanned"``). Phase 1 extractors produce none of these; Phase 2's
     PDF path will."""
+
+
+@dataclass(frozen=True)
+class DocumentRedactionResult:
+    """Document-shaped redaction return (OGE-792).
+
+    The natural pair to :class:`DocumentAnalysisResult` — same format
+    coverage, same chunking semantics, but the substantive output is the
+    *redacted* document text plus a :class:`RedactionMapping` the caller
+    can pass to :func:`~ogentic_shield.redaction.unredact_text` to restore
+    originals after a round-trip through an external LLM.
+
+    Carries the full :class:`DocumentAnalysisResult` that drove the
+    redaction so audit consumers can see *what* was found alongside *what
+    was masked* without re-running the pipeline.
+    """
+
+    path: str
+    """The original path the caller passed (str, not Path)."""
+
+    format: str
+    """The format detected — same vocabulary as
+    :attr:`DocumentAnalysisResult.format` (``"text"`` / ``"markdown"`` /
+    etc.). Phase 1 emits ``"text"`` and ``"markdown"`` only."""
+
+    original_text: str
+    """The extracted, pre-redaction text. Useful for diff displays and
+    for any downstream audit row that needs a hash of the input. Not the
+    same object as ``analysis.aggregate.entities[*].text`` — that's per-
+    entity; this is the full document."""
+
+    redacted_text: str
+    """The substantive output. Entities matching the active redaction
+    categories have been substituted with deterministic tokens of the
+    form ``[Label_abc123]`` (per the existing
+    :func:`~ogentic_shield.redaction.redact_text` engine).
+    Non-redacted text is byte-identical to ``original_text``."""
+
+    mapping: RedactionMapping
+    """Token → original-value mapping. Pass to
+    :func:`~ogentic_shield.redaction.unredact_text` after the LLM returns
+    to restore originals. Never logged or audit-emitted — the mapping
+    leaks the very thing redaction was protecting."""
+
+    analysis: DocumentAnalysisResult
+    """The analysis that drove the redaction — same shape
+    :meth:`Shield.analyze_document` returns. Use it to inspect *what was
+    found* (per-chunk breakdowns, score, category groups) without
+    re-running the pipeline."""
 
 
 # ─── Errors ─────────────────────────────────────────────────────────────────
