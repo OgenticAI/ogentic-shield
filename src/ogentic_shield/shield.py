@@ -11,6 +11,7 @@ from ogentic_shield.documents import (
     DEFAULT_CHUNK_CHARS,
     ChunkResult,
     DocumentAnalysisResult,
+    DocumentRedactionResult,
     aggregate_chunk_results,
     chunk_text,
     extract_text,
@@ -299,6 +300,107 @@ class Shield:
             aggregate=aggregate,
             chunks=chunk_results,
             extraction_warnings=[],  # Phase 2 extractors will populate this.
+        )
+
+    def redact_document(
+        self,
+        path: str | Path,
+        *,
+        profile: str | None = None,
+        profiles: list[str] | None = None,
+        redact_categories: list[str] | None = None,
+        layers: list[DetectionLayer] | None = None,
+        min_confidence: float | None = None,
+        chunk_chars: int = DEFAULT_CHUNK_CHARS,
+    ) -> DocumentRedactionResult:
+        """Redact regulatory-sensitive content from a document (OGE-792).
+
+        The document-level pair to :meth:`redact` — same redaction engine,
+        same per-profile defaults, same token format
+        (``[Label_abc123]``), but takes a file path and returns a
+        :class:`~ogentic_shield.documents.DocumentRedactionResult` carrying
+        the original text, the redacted text, the mapping (for
+        :meth:`unredact`), and the full :class:`DocumentAnalysisResult`
+        that drove the redaction.
+
+        Composes :meth:`analyze_document` and
+        :func:`~ogentic_shield.redaction.redact_text` — no duplicate
+        parsing or scoring logic; aggregation semantics are identical to
+        what :meth:`analyze_document` returns.
+
+        Phase 1 supports the plain-text family (``.txt``, ``.md``,
+        ``.log``); Phase-2 extensions raise
+        :class:`~ogentic_shield.documents.UnsupportedDocumentFormatError`
+        with the install hint (delegated to :func:`extract_text`).
+
+        Args:
+            path: File path to redact.
+            profile: Single profile ID (e.g. ``"shield-legal"``). Mutually
+                exclusive with ``profiles``; if both are ``None``, falls
+                back to the first profile this Shield was initialized
+                with. Selects which per-profile defaults
+                :func:`redact_text` uses when ``redact_categories`` is
+                also ``None``.
+            profiles: Multiple profile IDs to run through analysis. The
+                first is used as the redaction-defaults selector when
+                ``profile`` is ``None``.
+            redact_categories: Override category labels (or raw entity
+                types) to mask. ``None`` → per-profile defaults from
+                :data:`~ogentic_shield.redaction.PROFILE_REDACT_CATEGORIES`.
+            layers: Override which detection layers to run during
+                analysis.
+            min_confidence: Override minimum confidence threshold for
+                detection.
+            chunk_chars: Maximum chunk size in characters passed through
+                to :meth:`analyze_document`.
+
+        Returns:
+            :class:`DocumentRedactionResult` with ``path``, ``format``,
+            ``original_text``, ``redacted_text``, ``mapping``, and the
+            driving ``analysis``. ``unredact_text(redacted_text, mapping)``
+            round-trips to ``original_text`` for the redacted tokens.
+
+        Raises:
+            FileNotFoundError: ``path`` doesn't exist.
+            UnsupportedDocumentFormatError: format isn't supported (yet).
+        """
+        # Run analysis through the existing document pipeline — gives us
+        # extraction, chunking, per-chunk analysis, and a single aggregate
+        # AnalysisResult with entity offsets already rebased to the full
+        # extracted text. We re-extract to recover ``text`` (cheap for the
+        # Phase-1 plain-text family; Phase 2 may want a shared helper).
+        active_profiles = list(profiles) if profiles else (
+            [profile] if profile else None
+        )
+        analysis = self.analyze_document(
+            path,
+            profiles=active_profiles,
+            layers=layers,
+            min_confidence=min_confidence,
+            chunk_chars=chunk_chars,
+        )
+        text, fmt = extract_text(path)
+
+        # Pick the profile that drives redaction-category defaults. Caller's
+        # explicit ``profile`` wins; otherwise first of ``profiles`` /
+        # Shield-init profiles.
+        defaults_profile = profile or (
+            active_profiles[0] if active_profiles else self._profile_ids[0]
+        )
+        redacted_text, mapping = redact_text(
+            text,
+            analysis.aggregate.entities,
+            defaults_profile,
+            redact_categories,
+        )
+
+        return DocumentRedactionResult(
+            path=str(path),
+            format=fmt,
+            original_text=text,
+            redacted_text=redacted_text,
+            mapping=mapping,
+            analysis=analysis,
         )
 
     def required_models(self, tier: str | ModelTier | None = None) -> list[str]:

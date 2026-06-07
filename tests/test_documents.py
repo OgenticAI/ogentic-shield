@@ -22,8 +22,10 @@ import pytest
 from ogentic_shield import (
     ChunkResult,
     DocumentAnalysisResult,
+    DocumentRedactionResult,
     Shield,
     UnsupportedDocumentFormatError,
+    unredact_text,
 )
 from ogentic_shield.documents import (
     DEFAULT_CHUNK_CHARS,
@@ -336,3 +338,90 @@ class TestShieldAnalyzeDocument:
         # Chunk offsets must be monotonically non-decreasing.
         offsets = [c.text_offset for c in result.chunks]
         assert offsets == sorted(offsets)
+
+
+# ─── Shield.redact_document end-to-end (OGE-792) ────────────────────────────
+
+
+class TestShieldRedactDocument:
+    """End-to-end through the redaction pipeline.
+
+    Same shape as ``TestShieldAnalyzeDocument`` — one Presidio cold start
+    per class via the ``shield`` fixture, then several light tests that
+    exercise the document-redaction contract.
+    """
+
+    @pytest.fixture(scope="class")
+    def shield(self):
+        return Shield(profiles=["shield-legal"])
+
+    def test_returns_document_redaction_result(self, shield):
+        result = shield.redact_document(LEGAL_MEMO)
+        assert isinstance(result, DocumentRedactionResult)
+        assert result.format == "text"
+        assert result.path == str(LEGAL_MEMO)
+        # The aggregate analysis must drive redaction — we expose it on
+        # the result so audit consumers don't have to re-run the pipeline.
+        assert isinstance(result.analysis, DocumentAnalysisResult)
+        # original_text is the unredacted extraction; redacted_text is
+        # the substantive output. They must differ because the legal
+        # memo contains entities (people, organisations, dates).
+        assert result.original_text  # non-empty
+        assert result.original_text == LEGAL_MEMO.read_text(encoding="utf-8")
+        assert result.redacted_text != result.original_text
+        # At least one entity got tokenised — mapping populated.
+        assert result.mapping.tokens
+
+    def test_markdown_is_redacted(self, shield):
+        result = shield.redact_document(WELLNESS_BLOG)
+        assert result.format == "markdown"
+        # Wellness blog is a true negative for the legal profile — no
+        # entities matching the default redaction categories. Redacted
+        # text should equal the original (no-op redaction).
+        assert result.redacted_text == result.original_text
+        assert not result.mapping.tokens
+
+    def test_unredact_round_trip(self, shield):
+        result = shield.redact_document(LEGAL_MEMO)
+        # Mirror the audit-row privacy lock — no original entity text
+        # leaks into ``redacted_text``. We sample the mapping's originals
+        # and assert each is absent from the redacted output. This is the
+        # load-bearing privacy contract for redact_document.
+        for original in result.mapping.tokens.values():
+            assert original not in result.redacted_text, (
+                f"redacted_text still contains original entity {original!r}"
+            )
+        # And the inverse: unredact restores the original byte-for-byte.
+        restored = unredact_text(result.redacted_text, result.mapping)
+        assert restored == result.original_text
+
+    def test_unsupported_format_raises_with_install_hint(
+        self, shield, tmp_path: Path
+    ):
+        pdf_like = tmp_path / "term_sheet.pdf"
+        pdf_like.write_bytes(b"%PDF-1.4 fake")
+        with pytest.raises(UnsupportedDocumentFormatError) as exc:
+            shield.redact_document(pdf_like)
+        # Same dispatcher as analyze_document → same hint.
+        assert exc.value.ext == "pdf"
+        assert "ogentic-shield[documents]" in (exc.value.install_hint or "")
+
+    def test_missing_file_raises_filenotfound(self, shield, tmp_path: Path):
+        with pytest.raises(FileNotFoundError):
+            shield.redact_document(tmp_path / "nope.txt")
+
+    def test_redact_categories_override_is_honored(
+        self, shield, tmp_path: Path
+    ):
+        # Author a minimal document with a clearly-detectable entity and
+        # request a category override that wouldn't catch it. The result
+        # should be a no-op redaction, proving the override flowed
+        # through to redact_text rather than getting silently dropped.
+        doc = tmp_path / "tiny.txt"
+        doc.write_text("Email me at alice@example.com about the merger.")
+        # Override to a category that won't match an email address.
+        result = shield.redact_document(
+            doc, redact_categories=["NonexistentCategory"]
+        )
+        assert result.redacted_text == result.original_text
+        assert not result.mapping.tokens
