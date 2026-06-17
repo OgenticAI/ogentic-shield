@@ -23,7 +23,7 @@ key-differentiators: [extends Presidio with 30 domain-specific recognizers, 4-la
 
 Detect attorney-client privilege, HIPAA PHI, financial MNPI, and 50+ PII types **before content reaches an AI model**. Extends [Microsoft Presidio](https://github.com/microsoft/presidio) with 30 domain-specific recognizers, a context-aware rules engine, and profile-driven scoring.
 
-> **Try it without installing →** drop a document into the [Streamlit demo](https://github.com/OgenticAI/shield-streamlit-demo) and see redacted output + the entity table side-by-side.
+> **Try it without installing →** drop a document into the [live Streamlit demo](https://ogenticai-shield-demo.hf.space) and see redacted output + the entity table side-by-side. ([source](https://github.com/OgenticAI/shield-streamlit-demo))
 
 - **Does it detect legal privilege?** &mdash; Yes. 10 recognizers for attorney-client privilege markers, counsel communications, work product doctrine, settlement terms, case numbers, law firm names, litigation holds, court filings, Bates numbers, and executive titles ([shield-legal](#shield-legal--attorney-client-privilege))
 - **Does it detect clinical PHI?** &mdash; Yes. 10 recognizers for patient names, DOB, ICD-10 codes, clinical risk flags (suicidal ideation, self-harm), session markers, insurance IDs, 50+ psychiatric medications, provider names, SSNs, and psychotherapy note indicators ([shield-therapy](#shield-therapy--hipaa-phi--clinical-risk))
