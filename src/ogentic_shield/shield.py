@@ -218,6 +218,64 @@ class Shield:
                 results[idx] = future.result()
         return results
 
+    def classify_batch(
+        self,
+        texts: list[str],
+        *,
+        profile: str | None = None,
+    ) -> list[AnalysisResult | BatchItemError]:
+        """Analyze multiple texts serially, returning one result per input.
+
+        This is the simple, single-profile sibling of :meth:`analyze_batch`.
+        Key differences:
+
+        - **Serial execution**: items are processed one at a time in input
+          order. No threading. Use this when ordering semantics, memory
+          footprint, or test determinism matter more than throughput.
+        - **Single profile shorthand**: ``profile`` accepts one profile ID
+          string; it is expanded to ``profiles=[profile]`` before the
+          :meth:`analyze` call. Pass ``None`` (the default) to inherit the
+          profiles this Shield was initialized with.
+        - **Per-item fault isolation**: any exception raised during a single
+          item's analysis is caught and returned as a
+          :class:`~ogentic_shield.models.BatchItemError` at that index,
+          keeping the rest of the batch alive.
+        - **Empty-list fast path**: ``classify_batch([])`` returns ``[]``
+          without touching the pipeline.
+
+        Args:
+            texts: Inputs to analyze. Empty list returns ``[]``.
+            profile: Optional single profile ID (e.g. ``"shield-legal"``).
+                When provided, overrides the Shield's configured profiles for
+                every item in the batch. ``None`` uses the instance profiles.
+
+        Returns:
+            List of :class:`~ogentic_shield.models.AnalysisResult` (success)
+            or :class:`~ogentic_shield.models.BatchItemError` (failure), one
+            per input, in input order.
+        """
+        if not texts:
+            return []
+
+        profiles = [profile] if profile is not None else None
+        results: list[AnalysisResult | BatchItemError] = []
+
+        for idx, text in enumerate(texts):
+            try:
+                results.append(self.analyze(text, profiles=profiles))
+            except Exception as exc:  # noqa: BLE001 — per-item containment is the contract
+                logger.warning("classify_batch item %d failed: %s", idx, exc.__class__.__name__)
+                logger.debug("classify_batch item %d exception detail: %s", idx, exc)
+                results.append(
+                    BatchItemError(
+                        index=idx,
+                        error=str(exc),
+                        error_type=exc.__class__.__name__,
+                    )
+                )
+
+        return results
+
     def analyze_document(
         self,
         path: str | Path,
