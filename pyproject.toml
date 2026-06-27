@@ -78,6 +78,10 @@ select = ["E", "F", "I", "W"]
 # lines would change what the model sees, which would invalidate the v0.2
 # precision benchmarks.
 "src/ogentic_shield/layers/llm_prompts.py" = ["E501"]
+# Benchmark text templates and schema reminder strings — splitting natural-language
+# sentences would change the text the model trains on. E501 suppressed intentionally.
+"benchmarks/generate_eval_corpus.py" = ["E501"]
+"benchmarks/bakeoff/prepare_finetune_data.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
