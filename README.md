@@ -884,6 +884,24 @@ ogentic-shield/
 
 ---
 
+## Trust & Compliance
+
+OgenticAI publishes the following policy documents as part of our commitment to regulated-industry transparency:
+
+- **[Data Provenance](docs/PROVENANCE.md)** &mdash; Every training corpus with source, license, intake date, and content hash. Covers legal, clinical/therapy, and finance tiers.
+- **[Vertical-Expert Feedback Policy](docs/VERTICAL-EXPERT-FEEDBACK.md)** &mdash; How expert annotators are isolated from customer data, including the access boundary, annotation protocol, and audit trail.
+- **[No-Telemetry Policy](docs/TELEMETRY-POLICY.md)** &mdash; Our architectural commitment to zero outbound data, the explicit network allow-list, and a user-runnable verification recipe (tcpdump / Little Snitch / Wireshark).
+- **[Corpus Remediation Playbook](docs/CORPUS-REMEDIATION.md)** &mdash; Our CVE-style process for contaminated or mis-licensed training data, including a synthetic sample incident.
+
+These documents are the on-record receipts for the claim:
+
+> *Models trained on Sotto-tier corpora improve over time without any customer data entering the training loop.*
+
+All four documents are `Draft` status pending review by Craig + external counsel.
+Enterprise customers may request attestation letters or corpus archives via [security@ogenticai.com](mailto:security@ogenticai.com).
+
+---
+
 ## Documentation
 
 - [README](./README.md) &mdash; This file. Install, usage, profiles, FAQ
