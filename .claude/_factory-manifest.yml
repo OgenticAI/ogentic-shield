@@ -4,15 +4,15 @@
 manifest_version: 1
 factory_source: "https://github.com/OgenticAI/agent-factory"
 
-synced_kit_sha: "bee74dad12e5d663e7f1384fe1f8e0e5c19a315d"
-synced_kit_hash: "d35e01caa48d25a44505e826c10e50d54faf832c8304b81fad7d065bc971caf5"
-synced_at: "2026-07-02T11:07:58.054271+00:00"
+synced_kit_sha: "c9a8eaaa2276912be9d3e8fcc78c515eb98ea6d8"
+synced_kit_hash: "b16cfcddcc9d25d660f79300aa33e099afe2674752b67dad2374341bc6bccfd2"
+synced_at: "2026-07-12T12:44:46.112065+00:00"
 
 files:
   - path: .claude/CLAUDE-FACTORY.md
     content_sha256: b69aa19c4f811bae88e22dbbf3fa07e2c4d7ab6cb3a1b1bb307f685b00c58522
   - path: .claude/LINEAR-INTEGRATION.md
-    content_sha256: 056020dd6ecddd6d4c49e524ff999a157337cefbfb4ed588590ca3ac0748323b
+    content_sha256: 240482d03231cb6ac6d5dbaca715f203532ab704fa393c01fc7d93bd5adbcb2d
   - path: .claude/SKILLS.md
     content_sha256: 39cabbb918dab87502bf62d2845b11c89d6fc8ab153f10591e23d3db4b024f19
   - path: .claude/agents/01-researcher.md
@@ -28,9 +28,9 @@ files:
   - path: .claude/agents/05-frontend-builder.md
     content_sha256: 908c0c02e164e4ae2678c0713a5b81f80d0de0e02420140e78c8d4f1c06925fc
   - path: .claude/agents/06-test-verifier.md
-    content_sha256: 0a3ba2edee3306b5b685a38122bf5c04af7bc8b28bfefdf20ab2d0c542faf80e
+    content_sha256: 8ea1ac2fbc6b761d34adecd37e76ad12a15bec2b1a65af4a171b966502f45a72
   - path: .claude/agents/07-validator.md
-    content_sha256: 38b9afe34a982fe7fbc87ffac49093fcee18a25d262ca119a21aa7a28968a69b
+    content_sha256: d58fda997fee4480ac164d5388d4e698fc8f783ca78d0b5e976473b0462bce91
   - path: .claude/agents/08-ai-eval-engineer.md
     content_sha256: e19c4a7ed2cebbed1b00133e34decfcb2de3127f35de2abc5c9dc37899a77d25
   - path: .claude/agents/09-security-reviewer.md
@@ -49,6 +49,14 @@ files:
     content_sha256: 332ac45fe00622ceab2718cf44a07ba67878a209280ae4a817f1983e1bb81fea
   - path: .claude/agents/16-backlog-groomer.md
     content_sha256: 9b39b3036b7eb4dcebb0c378ce34cda73f5c72c34d55c4438cbb6894f4079363
+  - path: .claude/agents/16-design-architect.md
+    content_sha256: 438e0f0d33f196c5e039115afe571cf4ffbb55ed8c0ad5f413bc4440e3dec2d3
+  - path: .claude/agents/17-design-fidelity-checker.md
+    content_sha256: c42aafa4794bbcbfc797dbeab98eed87a9ed806afe6c49de4507ec23eddb0043
+  - path: .claude/agents/18-deploy-fitness-reviewer.md
+    content_sha256: ad65f7a1062a656532c26ef13a17e3717ce2e4493bd7147828ab787dfcf93ed0
+  - path: .claude/agents/19-monorepo-consistency-reviewer.md
+    content_sha256: eef5a14b99e447d9809741fa1326d4162508ada7e3d551ad04923f8e5095cce1
   - path: .claude/hooks/pre-commit
     content_sha256: 4620e26e07112561a3c0d8c2225c72f7f6c2dad55bc1028e4b995c4f41b1ea6f
   - path: .claude/hooks/pre-push
@@ -56,11 +64,13 @@ files:
   - path: .claude/hooks/tests/test-pre-commit.sh
     content_sha256: 15e7fdf20bab3b6210d9342ddbf1ba39395a189e9b2c4477c9f12f99fcf6d092
   - path: .claude/scripts/factory-linear-comment.sh
-    content_sha256: 928962f6ab2eb9e5919fcef596f90fb665bf3bc82ae8bd34969d0050f182d9eb
+    content_sha256: cf0bbd6af62442f114b16e0c2b2c3de001f951a1785e7b871ddc8ffc220c51af
+  - path: .claude/scripts/factory-linear-query.sh
+    content_sha256: 4b2312e9c558e91388a3ca6301cb5ae974945fbd3c66de18f47806fff73a17e7
   - path: .claude/skills/build-with-tests/SKILL.md
     content_sha256: 9d22f3160139e9a5631b1e71e23fdd377d349e49c1a1d38a6dfe186cc24f5d97
   - path: .claude/skills/feature-factory/SKILL.md
-    content_sha256: b121f6f993bf992617746b97a4c96b49d7d90cce0a975a7eb44e8ad95447688c
+    content_sha256: adaa86c711fc19a6c6b05caf82060c4716e589c4afdb99869bd584a853fc3f0f
   - path: .claude/skills/fleet-onboarding/SKILL.md
     content_sha256: b5359ed469b8005203d4970c4e973381a0f6bd564d5299d7ef8633524ff42d62
   - path: .claude/skills/multi-repo-coordinator/SKILL.md
