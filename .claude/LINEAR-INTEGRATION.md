@@ -91,9 +91,18 @@ In Review  (set by Linear's GitHub integration when the PR opens)
    │
    │  ⏸ CHECKPOINT 3 — David approves PR
    │
-   │  PR merged → Linear auto-moves
+   │  PR merged → Linear's GitHub integration auto-moves the ticket to Done
+   │  (it keys off the OGE-NNN in the PR title).
    ▼
 Done
+   │
+   │  ✅ MANDATORY post-merge check — Done = merged, and no merged ticket is ever
+   │  left un-Done. Immediately after merge, CONFIRM the ticket is in `Done`. If the
+   │  integration did not move it — the PR title lacked `OGE-NNN`, the ticket shipped
+   │  outside the full factory chain (lighter/direct ship), or the integration was
+   │  degraded — set it explicitly: `linear.save_issue(<TICKET-ID>, state='Done')`.
+   │  Whoever merges owns this check: the Release Manager in the full chain; otherwise
+   │  the operator/agent that performed the merge.
    │
    │  Release Manager posts release plan + deploy timestamps; (state may already be Done)
    ▼
