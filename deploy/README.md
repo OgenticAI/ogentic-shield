@@ -17,23 +17,24 @@ listens on `$PORT` (default 8080).
 - `SHIELD_API_KEY` (optional) — if set, `/analyze` requires the matching Bearer token.
   Set the SAME value as `SHIELD_API_KEY` in the Zashboard (Vercel) env.
 
-## Deploy (pick one; all build this Dockerfile)
+## Deploy — Railway (OgenticAI's standard host for services)
 
-**Google Cloud Run**
-```
-gcloud run deploy ogentic-shield --source deploy --region us-central1 \
-  --allow-unauthenticated --memory 2Gi --cpu 2 \
-  --set-env-vars SHIELD_API_KEY=<generate-a-secret>
-```
+Railway builds this `Dockerfile` directly (`railway.json` here configures the
+builder + `/health` healthcheck). No CLI needed:
 
-**Fly.io**
-```
-cd deploy && fly launch --now --dockerfile Dockerfile --vm-memory 2048
-fly secrets set SHIELD_API_KEY=<generate-a-secret>
-```
+1. Railway → **New Project → Deploy from GitHub repo** → `OgenticAI/ogentic-shield`.
+2. Service **Settings → Root Directory = `deploy`** (so it picks up this Dockerfile + `railway.json`).
+3. **Variables →** add `SHIELD_API_KEY=<generate-a-secret>` (optional but recommended).
+4. Deploy → copy the generated public URL → wire Zashboard (below).
+5. Give it ≥ **2 GB** memory (Presidio + `en_core_web_lg`).
 
-**Railway / Render** — connect this repo, root `deploy/`, Dockerfile build,
-add `SHIELD_API_KEY`. (No CLI needed — dashboard "New service → from repo".)
+Or via CLI: `cd deploy && railway up`.
+
+<details><summary>Other hosts (same Dockerfile)</summary>
+
+- **Cloud Run:** `gcloud run deploy ogentic-shield --source deploy --region us-central1 --allow-unauthenticated --memory 2Gi --cpu 2`
+- **Fly.io:** `cd deploy && fly launch --now --dockerfile Dockerfile --vm-memory 2048`
+</details>
 
 > Memory: the Presidio + `en_core_web_lg` pipeline wants ~1.5–2 GB. Use ≥2 GB
 > and scale with replicas, not workers.
