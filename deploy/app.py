@@ -7,28 +7,52 @@ FastAPI wrapper exposes `POST /analyze` in the exact contract
 Presidio + spaCy pipeline (regex + NER + rules). Deploy as a container (see
 deploy/README.md) and point the app's SHIELD_URL at it.
 
-Run: uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}
+Both the `ogentic_shield` import AND the Presidio/spaCy pipeline build are done
+lazily (first `/analyze`, warmed in a background thread at startup) so the module
+loads instantly, uvicorn binds immediately, and `/health` passes the platform
+healthcheck regardless of model-load time.
 """
 
 from __future__ import annotations
 
 import os
+import threading
 from enum import Enum
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
-from ogentic_shield import Shield  # published public API (>=0.4.0)
-
-# Load the Presidio/spaCy pipeline ONCE at startup (heavy) and reuse per request;
-# `analyze()` takes a per-call profile override so one instance serves all verticals.
 DEFAULT_PROFILES = ["shield-finance", "shield-legal", "shield-therapy"]
-_shield = Shield(profiles=DEFAULT_PROFILES)
-
 _API_KEY = os.environ.get("SHIELD_API_KEY") or ""
 
+_shield: Any = None
+_shield_lock = threading.Lock()
+
+
+def _get_shield() -> Any:
+    global _shield
+    if _shield is None:
+        with _shield_lock:
+            if _shield is None:
+                from ogentic_shield import Shield  # heavy import — deferred
+
+                _shield = Shield(profiles=DEFAULT_PROFILES)
+    return _shield
+
+
+def _val(x: Any) -> Any:
+    return x.value if isinstance(x, Enum) else x
+
+
 app = FastAPI(title="ogentic-shield", version="0.4")
+
+
+@app.on_event("startup")
+def _warm_pipeline() -> None:
+    # Warm the import + model in the background so the first real /analyze isn't
+    # slow (the TS client times out at 10s), without delaying uvicorn bind.
+    threading.Thread(target=_get_shield, daemon=True).start()
 
 
 class AnalyzeRequest(BaseModel):
@@ -36,8 +60,31 @@ class AnalyzeRequest(BaseModel):
     profiles: list[str] | None = None
 
 
-def _val(x: Any) -> Any:
-    return x.value if isinstance(x, Enum) else x
+@app.get("/")
+def root() -> dict[str, Any]:
+    # Unauthenticated service banner — identity + how to use it, no analysis, no secrets.
+    return {
+        "service": "ogentic-shield",
+        "version": app.version,
+        "status": "ok",
+        "description": (
+            "Shield redaction service — detects PII / sensitive entities "
+            "(Presidio + spaCy, regex + NER + rules) for OgenticAI Zashboard's "
+            "governed loop."
+        ),
+        "endpoints": {
+            "GET /": "this service banner",
+            "GET /health": "liveness probe → {ok: true}",
+            "POST /analyze": (
+                "body {text, profiles?}; optional 'Authorization: Bearer <SHIELD_API_KEY>'; "
+                "returns {text_hash, entities[], score, sensitivity_level, "
+                "routing_suggestion, ...}"
+            ),
+        },
+        "default_profiles": DEFAULT_PROFILES,
+        "auth": "required" if _API_KEY else "open",
+        "source": "https://github.com/OgenticAI/ogentic-shield",
+    }
 
 
 @app.get("/health")
@@ -50,7 +97,7 @@ def analyze(req: AnalyzeRequest, authorization: str | None = Header(default=None
     if _API_KEY and authorization != f"Bearer {_API_KEY}":
         raise HTTPException(status_code=401, detail="unauthorized")
     try:
-        result = _shield.analyze(req.text, profiles=req.profiles)
+        result = _get_shield().analyze(req.text, profiles=req.profiles)
     except Exception as exc:  # unknown profile id, etc. → 400, never leak internals
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

@@ -20,24 +20,42 @@ listens on `$PORT` (default 8080).
 ## Deploy — Railway (OgenticAI's standard host for services)
 
 Railway builds this `Dockerfile` directly (`railway.json` here configures the
-builder + `/health` healthcheck). No CLI needed:
+builder + `/health` healthcheck). Fastest path is the CLI from this dir:
 
-1. Railway → **New Project → Deploy from GitHub repo** → `OgenticAI/ogentic-shield`.
-2. Service **Settings → Root Directory = `deploy`** (so it picks up this Dockerfile + `railway.json`).
-3. **Variables →** add `SHIELD_API_KEY=<generate-a-secret>` (optional but recommended).
-4. Deploy → copy the generated public URL → wire Zashboard (below).
-5. Give it ≥ **2 GB** memory (Presidio + `en_core_web_lg`).
+```
+cd deploy
+railway up --detach --service <service>   # builds this Dockerfile + railway.json
+railway variables --set "SHIELD_API_KEY=<generate-a-secret>" --service <service>
+```
 
-Or via CLI: `cd deploy && railway up`.
+Or via the dashboard: **New Project → Deploy from GitHub repo** →
+`OgenticAI/ogentic-shield`, then **Settings → Root Directory = `deploy`** so it
+picks up this Dockerfile + `railway.json`.
+
+### Two Railway gotchas that will cost you an hour (both hit us on first deploy)
+
+1. **Bind `0.0.0.0`, not `::`.** Railway's edge/proxy connects to the container
+   over **IPv4**. A `--host ::` bind is IPv6-only on `python:*-slim`
+   (`bindv6only`), so the edge gets a 502 *"Application failed to respond"* even
+   though the app is up. The `startCommand` here uses `--host 0.0.0.0` — keep it.
+2. **The public domain needs a target port bound to 8080.** After generating the
+   domain, Railway may leave the target port **unset** (the domain editor shows
+   *"Select a port"*). Symptoms: healthcheck fails *"service unavailable"* → deploy
+   never goes live → edge returns 404 *"Application not found"*; or, with no
+   healthcheck, a 502. Fix in **Settings → Networking → the domain → edit → Edit
+   Port → 8080** (Railway "magic" detects `8080 (uvicorn)` for you). The CLI
+   cannot set this on an existing domain — use the dashboard, then redeploy so the
+   running deployment re-registers with the proxy.
+
+> Memory: the Presidio + `en_core_web_lg` pipeline wants ~1.5–2 GB. The service
+> boots on the 1 GB trial plan (models load lazily on first `/analyze`), but give
+> it ≥ **2 GB** for headroom and scale with replicas, not workers.
 
 <details><summary>Other hosts (same Dockerfile)</summary>
 
 - **Cloud Run:** `gcloud run deploy ogentic-shield --source deploy --region us-central1 --allow-unauthenticated --memory 2Gi --cpu 2`
 - **Fly.io:** `cd deploy && fly launch --now --dockerfile Dockerfile --vm-memory 2048`
 </details>
-
-> Memory: the Presidio + `en_core_web_lg` pipeline wants ~1.5–2 GB. Use ≥2 GB
-> and scale with replicas, not workers.
 
 ## Wire Zashboard
 Once you have the service URL, set on the `zashboardapp` Vercel project (Production +
