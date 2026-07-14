@@ -60,6 +60,33 @@ class AnalyzeRequest(BaseModel):
     profiles: list[str] | None = None
 
 
+@app.get("/")
+def root() -> dict[str, Any]:
+    # Unauthenticated service banner — identity + how to use it, no analysis, no secrets.
+    return {
+        "service": "ogentic-shield",
+        "version": app.version,
+        "status": "ok",
+        "description": (
+            "Shield redaction service — detects PII / sensitive entities "
+            "(Presidio + spaCy, regex + NER + rules) for OgenticAI Zashboard's "
+            "governed loop."
+        ),
+        "endpoints": {
+            "GET /": "this service banner",
+            "GET /health": "liveness probe → {ok: true}",
+            "POST /analyze": (
+                "body {text, profiles?}; optional 'Authorization: Bearer <SHIELD_API_KEY>'; "
+                "returns {text_hash, entities[], score, sensitivity_level, "
+                "routing_suggestion, ...}"
+            ),
+        },
+        "default_profiles": DEFAULT_PROFILES,
+        "auth": "required" if _API_KEY else "open",
+        "source": "https://github.com/OgenticAI/ogentic-shield",
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, bool]:
     return {"ok": True}
