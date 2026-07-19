@@ -43,7 +43,7 @@ If a tool is missing from your local install, the orchestrator should report whi
 
 ---
 
-## 2a. Assignee is MANDATORY on every issue an agent creates
+## 2a. Assignee AND project are MANDATORY on every issue an agent creates
 
 **Any issue an agent creates via `linear.save_issue` MUST have an assignee — never `null`.** Unowned agent tickets pile up invisibly: an org-wide audit (OGE-1290, 2026-07-02) found 374 unassigned issues in OGE, 173 of them agent-created (121 from the project-planner seed backlog alone). Resolve the assignee in this order:
 
@@ -51,6 +51,20 @@ If a tool is missing from your local install, the orchestrator should report whi
 2. **The operator** — otherwise assign the operator (**David** by default; `david@ogenticai.com`). An operator may direct issues to **Dennis** or **Craig**; never assign any other human, and never leave it unassigned (see §12).
 
 This is a hard rule for **every** created issue, not just the intake ticket: the project-planner seed backlog, finding sub-issues (Validator / Security / Compliance), decomposition sub-issues (backlog-groomer), and decision-derived issues (new-from-knowledge) all fall under it. `assignee` is a required field on any `save_issue` **create** — if you can't resolve a specific person, default to the operator.
+
+### Project is mandatory too
+
+**`project` is equally required.** A project-less ticket does not appear in any project view — it is reachable only by scrolling an 800-item backlog or by knowing its id. Filing one is worse than not filing at all, because the work looks captured when it is not.
+
+- Set `project` **in the create call**, not as a follow-up edit.
+- Resolve it by asking which existing project owns the surface the work touches. `list_projects` on the team, filtered by name, is usually enough.
+- **If no existing project fits, ask the operator.** Do not file project-less, and do not invent a project — `project-planner` exists for work that genuinely needs a new one.
+
+### Verify before reporting success
+
+A returned `url` is not success. Confirm the `save_issue` response contains non-null **`project`** and **`assignee`** before telling the operator the ticket is filed. After a batch, sanity-check with `list_issues` using `assignee: null` — nothing you just created should appear.
+
+> **Why this is spelled out twice.** §2a already required an assignee when, on 2026-07-19, one session filed 9 tickets with neither field and a concurrent session filed 6 more with no assignee. The operator caught all 15 in the backlog view. The rule existed; it was not applied. Treat both fields as part of the create call's required arguments, not as metadata to tidy up later.
 
 ---
 
