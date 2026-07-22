@@ -1,9 +1,8 @@
-# ogentic-shield HTTP service — full Presidio + spaCy pipeline.
+# ogentic-shield HTTP service — Presidio + spaCy pipeline, lean by default.
 #
-# Build context is the REPO ROOT (not deploy/), so shield is installed from
-# source — the configurable NER model (SHIELD_NER_MODEL) isn't in the published
-# 0.4 wheel yet. Switch to a pinned wheel after the next release.
-# Railway: Root Directory = repo root, Dockerfile Path = deploy/Dockerfile.
+# Self-contained: build context is THIS directory (deploy/). Installs the
+# published wheel (>= 0.6.0, which has the configurable NER model). Railway:
+# Root Directory = deploy.
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -13,11 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install shield (server extra) from source. README.md is referenced by
-# pyproject's `readme=`, so it's needed for the build.
-COPY pyproject.toml README.md ./
-COPY src ./src
-RUN pip install --no-cache-dir ".[server]" "uvicorn[standard]>=0.29"
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Bundle BOTH spaCy models. Which one *loads* (and therefore how much RAM the
 # service uses) is chosen at runtime by SHIELD_NER_MODEL:
@@ -28,7 +24,7 @@ RUN pip install --no-cache-dir ".[server]" "uvicorn[standard]>=0.29"
 RUN python -m spacy download en_core_web_sm \
     && python -m spacy download en_core_web_lg
 
-COPY deploy/app.py ./app.py
+COPY app.py .
 
 ENV PORT=8080
 # Lean by default — this is the setting that keeps the service from OOM-crashing

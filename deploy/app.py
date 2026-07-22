@@ -60,7 +60,7 @@ def _val(x: Any) -> Any:
     return x.value if isinstance(x, Enum) else x
 
 
-app = FastAPI(title="ogentic-shield", version="0.4")
+app = FastAPI(title="ogentic-shield", version="0.6")
 
 
 @app.on_event("startup")
