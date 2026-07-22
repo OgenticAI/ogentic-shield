@@ -53,6 +53,13 @@ class OutputConfig:
     max_entities: int = 50
 
 
+# Default spaCy model for the NER layer. ``en_core_web_lg`` is the accuracy
+# default; ``en_core_web_sm`` loads to ~1/5 the memory (~165 MB vs ~780 MB) with
+# a modest NER-recall trade-off — the lever for constrained deployments
+# (serverless, small containers, free tiers). See docs/DEPLOYMENT.md.
+DEFAULT_NER_MODEL: str = "en_core_web_lg"
+
+
 @dataclass
 class ShieldConfig:
     version: str = "0.1"
@@ -60,6 +67,7 @@ class ShieldConfig:
     layers_regex: bool = True
     layers_ner: bool = True
     layers_rules: bool = True
+    ner_model: str = DEFAULT_NER_MODEL
     llm: LlmConfig = field(default_factory=LlmConfig)
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
@@ -125,6 +133,7 @@ def load_config(path: str | Path | None = None) -> ShieldConfig:
         layers_regex=layers_data.get("regex", True),
         layers_ner=layers_data.get("ner", True),
         layers_rules=layers_data.get("rules", True),
+        ner_model=layers_data.get("ner_model", DEFAULT_NER_MODEL),
         llm=llm_config,
         scoring=scoring_config,
         output=output_config,

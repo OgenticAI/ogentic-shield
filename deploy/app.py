@@ -26,6 +26,17 @@ from pydantic import BaseModel
 DEFAULT_PROFILES = ["shield-finance", "shield-legal", "shield-therapy"]
 _API_KEY = os.environ.get("SHIELD_API_KEY") or ""
 
+# Deployment knobs (no code change / no redeploy of the image needed):
+#   SHIELD_PROFILES  — comma-separated profile ids (default: finance,legal,therapy)
+#   SHIELD_NER_MODEL — spaCy model for the NER layer. "en_core_web_lg" (accuracy,
+#                      ~780 MB) or "en_core_web_sm" (~165 MB — fits a 512 MB box /
+#                      serverless). Default sm here: the service is memory-bound,
+#                      and the ~5x saving is what keeps it from OOM-crashing on a
+#                      small plan. Set to lg on a ≥2 GB box for max NER recall.
+_PROFILES = [p.strip() for p in os.environ.get("SHIELD_PROFILES", "").split(",") if p.strip()] \
+    or DEFAULT_PROFILES
+_NER_MODEL = os.environ.get("SHIELD_NER_MODEL") or "en_core_web_sm"
+
 _shield: Any = None
 _shield_lock = threading.Lock()
 
@@ -36,8 +47,12 @@ def _get_shield() -> Any:
         with _shield_lock:
             if _shield is None:
                 from ogentic_shield import Shield  # heavy import — deferred
+                from ogentic_shield.config import ShieldConfig
 
-                _shield = Shield(profiles=DEFAULT_PROFILES)
+                _shield = Shield(
+                    profiles=_PROFILES,
+                    config=ShieldConfig(profiles=_PROFILES, ner_model=_NER_MODEL),
+                )
     return _shield
 
 

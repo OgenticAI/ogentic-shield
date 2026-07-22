@@ -16,21 +16,31 @@ listens on `$PORT` (default 8080).
 - `PORT` — set by the host.
 - `SHIELD_API_KEY` (optional) — if set, `/analyze` requires the matching Bearer token.
   Set the SAME value as `SHIELD_API_KEY` in the Zashboard (Vercel) env.
+- `SHIELD_NER_MODEL` (optional) — spaCy model for the NER layer. **Defaults to
+  `en_core_web_sm`** here (~165 MB RAM — fits a 512 MB box). Set to
+  `en_core_web_lg` (~780 MB RAM) on a ≥ 2 GB box for maximum NER recall. See
+  [Memory & sizing](#memory--sizing).
+- `SHIELD_PROFILES` (optional) — comma-separated profile ids
+  (default `shield-finance,shield-legal,shield-therapy`).
 
 ## Deploy — Railway (OgenticAI's standard host for services)
 
-Railway builds this `Dockerfile` directly (`railway.json` here configures the
-builder + `/health` healthcheck). Fastest path is the CLI from this dir:
+The `Dockerfile` builds from the **repo root** (it installs shield from source,
+because `SHIELD_NER_MODEL` isn't in the published 0.4 wheel yet). `railway.json`
+sets the Dockerfile path + `/health` healthcheck.
+
+Dashboard: **New Project → Deploy from GitHub repo** → `OgenticAI/ogentic-shield`,
+then **Settings**:
+- **Root Directory** = repo root (blank / `/`)
+- Config-as-code picks up `deploy/railway.json` (Dockerfile path = `deploy/Dockerfile`)
+- Set `SHIELD_API_KEY` (and optionally `SHIELD_NER_MODEL=en_core_web_lg` if you gave it ≥ 2 GB).
+
+Or from the CLI at the repo root:
 
 ```
-cd deploy
-railway up --detach --service <service>   # builds this Dockerfile + railway.json
+railway up --detach --service <service>
 railway variables --set "SHIELD_API_KEY=<generate-a-secret>" --service <service>
 ```
-
-Or via the dashboard: **New Project → Deploy from GitHub repo** →
-`OgenticAI/ogentic-shield`, then **Settings → Root Directory = `deploy`** so it
-picks up this Dockerfile + `railway.json`.
 
 ### Two Railway gotchas that will cost you an hour (both hit us on first deploy)
 
@@ -47,14 +57,33 @@ picks up this Dockerfile + `railway.json`.
    cannot set this on an existing domain — use the dashboard, then redeploy so the
    running deployment re-registers with the proxy.
 
-> Memory: the Presidio + `en_core_web_lg` pipeline wants ~1.5–2 GB. The service
-> boots on the 1 GB trial plan (models load lazily on first `/analyze`), but give
-> it ≥ **2 GB** for headroom and scale with replicas, not workers.
+## Memory & sizing
 
-<details><summary>Other hosts (same Dockerfile)</summary>
+The Presidio + spaCy pipeline is the memory driver. Measured peak RSS with the
+three regulated profiles loaded:
 
-- **Cloud Run:** `gcloud run deploy ogentic-shield --source deploy --region us-central1 --allow-unauthenticated --memory 2Gi --cpu 2`
-- **Fly.io:** `cd deploy && fly launch --now --dockerfile Dockerfile --vm-memory 2048`
+| `SHIELD_NER_MODEL` | Peak RAM | Fits | NER recall |
+|---|---|---|---|
+| `en_core_web_sm` (default here) | **~165 MB** | 512 MB box / most serverless | good — all regex + rule recognizers identical; slightly lower name/org NER |
+| `en_core_web_lg` | ~780 MB | ≥ 2 GB box | maximum |
+
+Two things that used to make this OOM-crash on small plans, both now handled:
+
+1. **The model loaded on *every* request.** `run_layer1` built a fresh Presidio
+   engine per call, so under concurrency the model multiplied in RAM until the
+   container was OOM-killed. The analyzer is now **cached** (loads once, reused
+   across request threads) — first `/analyze` pays the load, the rest are ~ms.
+2. **`en_core_web_lg` was hardcoded.** Now selectable via `SHIELD_NER_MODEL`;
+   `sm` is the lean default here.
+
+Net: on a **512 MB–1 GB** plan, keep the `sm` default. Only bump to `lg` (and
+≥ 2 GB) if you need maximum name/organization NER recall. Scale with replicas,
+not workers (single worker per process — the engine is shared per process).
+
+<details><summary>Other hosts (same Dockerfile, build from repo root)</summary>
+
+- **Cloud Run:** `gcloud run deploy ogentic-shield --source . --region us-central1 --allow-unauthenticated --memory 512Mi --cpu 1` (bump to `--memory 2Gi` for `lg`)
+- **Fly.io:** `fly launch --now --dockerfile deploy/Dockerfile --vm-memory 512`
 </details>
 
 ## Wire Zashboard

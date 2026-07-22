@@ -117,6 +117,7 @@ class Shield:
             layers=layers,
             min_confidence=effective_min_confidence,
             llm_config=llm_config,
+            ner_model=self._config.ner_model,
         )
 
     def redact(

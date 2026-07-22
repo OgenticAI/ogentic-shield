@@ -131,10 +131,12 @@ def run_pipeline(
     layers: list[DetectionLayer] | None = None,
     min_confidence: float = 0.5,
     llm_config: dict | None = None,
+    ner_model: str = "en_core_web_lg",
 ) -> AnalysisResult:
     """Run the full detection pipeline.
 
     Layers execute in strict order: REGEX/NER → RULES → LLM (if enabled).
+    ``ner_model`` selects the spaCy model behind the NER layer.
     """
     started_at = time.perf_counter()
 
@@ -146,7 +148,7 @@ def run_pipeline(
 
     # Layer 1: Regex + NER
     if DetectionLayer.REGEX in layers or DetectionLayer.NER in layers:
-        entities = run_layer1(text, profiles, min_confidence)
+        entities = run_layer1(text, profiles, min_confidence, ner_model=ner_model)
         if DetectionLayer.REGEX in layers:
             layers_invoked.append(DetectionLayer.REGEX)
         if DetectionLayer.NER in layers:
