@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ogentic-shield"
-version = "0.5.0"
+version = "0.6.0"
 description = "Regulatory sensitivity detection for legal privilege, clinical PHI, and financial MNPI"
 readme = "PYPI_README.md"
 license = "Apache-2.0"

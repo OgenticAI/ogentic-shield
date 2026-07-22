@@ -7,6 +7,19 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.6.0] - 2026-07-22
+
+### Added
+
+- **Configurable NER spaCy model** via `ShieldConfig.ner_model` (default `en_core_web_lg`; loaded from `layers.ner_model` in YAML). `en_core_web_sm` runs the pipeline at **~165 MB vs ~780 MB** (~4.8×) with identical detection on the regulated profiles — the lever for serverless / small-container / free-tier deployments. (#54, OGE-1743)
+- **Shield `/analyze` HTTP service** under `deploy/` — a thin FastAPI wrapper over the pipeline, Dockerfile + `railway.json` for any container host. Reads `SHIELD_NER_MODEL` / `SHIELD_PROFILES` from env. (#48/#49, OGE-1433)
+
+### Fixed
+
+- **NER analyzer is now cached** per `(model, profiles)` instead of rebuilt on every `analyze()` call. Previously the spaCy model reloaded per request, which added seconds of latency and, under concurrency, multiplied the model in RAM until the process OOM-crashed. First call pays the load; subsequent calls are ~ms. (#54, OGE-1743)
+
+---
+
 ## [0.5.0] - 2026-06-24
 
 ### Added
