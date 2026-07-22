@@ -25,19 +25,18 @@ listens on `$PORT` (default 8080).
 
 ## Deploy — Railway (OgenticAI's standard host for services)
 
-The `Dockerfile` builds from the **repo root** (it installs shield from source,
-because `SHIELD_NER_MODEL` isn't in the published 0.4 wheel yet). `railway.json`
-sets the Dockerfile path + `/health` healthcheck.
+The `Dockerfile` is self-contained (build context = this `deploy/` dir) and
+installs the published wheel (`ogentic-shield[server]>=0.6.0`, which has the
+configurable NER model). `railway.json` sets the Dockerfile + `/health` healthcheck.
 
 Dashboard: **New Project → Deploy from GitHub repo** → `OgenticAI/ogentic-shield`,
-then **Settings**:
-- **Root Directory** = repo root (blank / `/`)
-- Config-as-code picks up `deploy/railway.json` (Dockerfile path = `deploy/Dockerfile`)
-- Set `SHIELD_API_KEY` (and optionally `SHIELD_NER_MODEL=en_core_web_lg` if you gave it ≥ 2 GB).
+then **Settings → Root Directory = `deploy`**. Set `SHIELD_API_KEY` (and optionally
+`SHIELD_NER_MODEL=en_core_web_lg` if you gave it ≥ 2 GB).
 
-Or from the CLI at the repo root:
+Or from the CLI in this dir:
 
 ```
+cd deploy
 railway up --detach --service <service>
 railway variables --set "SHIELD_API_KEY=<generate-a-secret>" --service <service>
 ```
@@ -82,8 +81,8 @@ not workers (single worker per process — the engine is shared per process).
 
 <details><summary>Other hosts (same Dockerfile, build from repo root)</summary>
 
-- **Cloud Run:** `gcloud run deploy ogentic-shield --source . --region us-central1 --allow-unauthenticated --memory 512Mi --cpu 1` (bump to `--memory 2Gi` for `lg`)
-- **Fly.io:** `fly launch --now --dockerfile deploy/Dockerfile --vm-memory 512`
+- **Cloud Run:** `gcloud run deploy ogentic-shield --source deploy --region us-central1 --allow-unauthenticated --memory 512Mi --cpu 1` (bump to `--memory 2Gi` for `lg`)
+- **Fly.io:** `cd deploy && fly launch --now --dockerfile Dockerfile --vm-memory 512`
 </details>
 
 ## Wire Zashboard
