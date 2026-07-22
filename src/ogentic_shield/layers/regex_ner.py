@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import logging
 import time
+from functools import lru_cache
 
 from presidio_analyzer import AnalyzerEngine
+from presidio_analyzer.nlp_engine import NlpEngineProvider
 
 from ogentic_shield.models import (
     CATEGORY_GROUP_PRIORITY,
@@ -14,8 +16,35 @@ from ogentic_shield.models import (
     DetectionLayer,
     ShieldProfile,
 )
+from ogentic_shield.profiles import get_profile
 
 logger = logging.getLogger("ogentic_shield.layers.regex_ner")
+
+
+@lru_cache(maxsize=8)
+def _get_analyzer(ner_model: str, profile_ids: tuple[str, ...]) -> AnalyzerEngine:
+    """Build (once, then cache) a Presidio analyzer for a model + profile set.
+
+    Presidio loads its spaCy model at construction — ~780 MB for
+    ``en_core_web_lg``, ~165 MB for ``en_core_web_sm``. Building a fresh engine
+    per :func:`run_layer1` call reloaded that model on **every request**, which
+    both added seconds of latency and, under concurrency, multiplied the model
+    in memory until the container OOM-killed. Caching by ``(ner_model,
+    profile_ids)`` loads each model once and reuses it — the reuse pattern
+    Presidio itself recommends. ``AnalyzerEngine.analyze`` is stateless, so the
+    shared engine is safe across the server's request threads.
+    """
+    provider = NlpEngineProvider(
+        nlp_configuration={
+            "nlp_engine_name": "spacy",
+            "models": [{"lang_code": "en", "model_name": ner_model}],
+        }
+    )
+    analyzer = AnalyzerEngine(nlp_engine=provider.create_engine())
+    for pid in profile_ids:
+        for recognizer in get_profile(pid).recognizers:
+            analyzer.registry.add_recognizer(recognizer)
+    return analyzer
 
 # Mapping from custom entity types to their category groups
 _ENTITY_CATEGORY_GROUP: dict[str, CategoryGroup] = {
@@ -123,15 +152,18 @@ def run_layer1(
     text: str,
     profiles: list[ShieldProfile],
     min_confidence: float = 0.5,
+    ner_model: str = "en_core_web_lg",
 ) -> list[DetectedEntity]:
-    """Run Layer 1: Presidio regex + NER detection with custom recognizers."""
+    """Run Layer 1: Presidio regex + NER detection with custom recognizers.
+
+    ``ner_model`` selects the spaCy model behind Presidio's NER — default
+    ``en_core_web_lg`` (accuracy), ``en_core_web_sm`` for a ~5x smaller memory
+    footprint. The analyzer is cached per ``(ner_model, profiles)`` so the model
+    loads once rather than per call.
+    """
     start_time = time.perf_counter()
 
-    analyzer = AnalyzerEngine()
-
-    for profile in profiles:
-        for recognizer in profile.recognizers:
-            analyzer.registry.add_recognizer(recognizer)
+    analyzer = _get_analyzer(ner_model, tuple(p.id for p in profiles))
 
     all_entity_types = set()
     for profile in profiles:

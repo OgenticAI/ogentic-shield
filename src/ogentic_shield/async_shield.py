@@ -165,7 +165,11 @@ class AsyncShield:
         # yields once with both layers stamped invoked).
         if DetectionLayer.REGEX in active_layers or DetectionLayer.NER in active_layers:
             entities = await asyncio.to_thread(
-                run_layer1, text, active_profiles, effective_min_confidence
+                run_layer1,
+                text,
+                active_profiles,
+                effective_min_confidence,
+                self._shield._config.ner_model,
             )
             if DetectionLayer.REGEX in active_layers:
                 layers_invoked.append(DetectionLayer.REGEX)
