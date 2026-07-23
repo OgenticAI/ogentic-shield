@@ -351,24 +351,24 @@ class ExecutiveNameRecognizer(PatternRecognizer):
     PATTERNS = [
         Pattern(
             name="c_suite_title",
-            regex=r"\b(CEO|CFO|COO|CTO|CIO|CISO|CLO|CMO|CPO)\s+[A-Z][a-z]+\b",
+            regex=r"\b(CEO|CFO|COO|CTO|CIO|CISO|CLO|CMO|CPO)\s+(?-i:[A-Z][a-z]+)\b",
             score=0.90,
         ),
         Pattern(
             name="general_counsel_name",
-            regex=r"\b[Gg]eneral\s+[Cc]ounsel\s+[A-Z][a-z]+(\s+[A-Z][a-z]+)?\b",
+            regex=r"\b[Gg]eneral\s+[Cc]ounsel\s+(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?)\b",
             score=0.92,
         ),
         Pattern(
             name="managing_partner",
-            regex=r"\b[Mm]anaging\s+[Pp]artner\s+[A-Z][a-z]+(\s+[A-Z][a-z]+)?\b",
+            regex=r"\b[Mm]anaging\s+[Pp]artner\s+(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?)\b",
             score=0.90,
         ),
         Pattern(
             name="executive_titles",
             regex=(
                 r"\b(Chairman|President|Vice\s+President|Director|Secretary|Treasurer)"
-                r"\s+[A-Z][a-z]+(\s+[A-Z][a-z]+)?\b"
+                r"\s+(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?)\b"
             ),
             score=0.80,
         ),

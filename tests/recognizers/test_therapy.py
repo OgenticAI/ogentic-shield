@@ -45,6 +45,13 @@ class TestPatientNameRecognizer:
         entities = [e for e in result.entities if e.category == "PATIENT_NAME"]
         assert entities == []
 
+    def test_ignores_patient_followed_by_lowercase(self, therapy_shield):
+        """Regression (recognizer IGNORECASE): 'patient' + lowercase words must not
+        match PATIENT_NAME — the name portion requires real capitalisation."""
+        result = therapy_shield.analyze("The patient rested well overnight.")
+        entities = [e for e in result.entities if e.category == "PATIENT_NAME"]
+        assert entities == []
+
 
 class TestDateOfBirthRecognizer:
     """Tests for DATE_OF_BIRTH detection."""
@@ -260,6 +267,13 @@ class TestProviderNameRecognizer:
         result = therapy_shield.analyze("The sunset was beautiful yesterday.")
         entities = [e for e in result.entities if e.category == "PROVIDER_NAME"]
         assert len(entities) == 0
+
+    def test_ignores_lowercase_after_keyword(self, therapy_shield):
+        """Regression (recognizer IGNORECASE): a keyword followed by lowercase words
+        (not a capitalised name) must not match PROVIDER_NAME."""
+        result = therapy_shield.analyze("the therapist noted steady improvement today")
+        entities = [e for e in result.entities if e.category == "PROVIDER_NAME"]
+        assert entities == []
 
 
 class TestSsnRecognizer:

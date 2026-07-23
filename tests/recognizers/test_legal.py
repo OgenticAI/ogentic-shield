@@ -316,3 +316,10 @@ class TestExecutiveNameRecognizer:
         result = legal_shield.analyze("The cat sat on the mat.")
         entities = [e for e in result.entities if e.category == "EXECUTIVE_NAME"]
         assert len(entities) == 0
+
+    def test_ignores_title_followed_by_lowercase(self, legal_shield):
+        """Regression (recognizer IGNORECASE): a title followed by a lowercase word
+        (e.g. 'the CFO reported') must not match EXECUTIVE_NAME."""
+        result = legal_shield.analyze("the CFO reported quarterly earnings")
+        entities = [e for e in result.entities if e.category == "EXECUTIVE_NAME"]
+        assert entities == []
