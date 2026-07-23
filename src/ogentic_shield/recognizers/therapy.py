@@ -9,17 +9,17 @@ class PatientNameRecognizer(PatternRecognizer):
     PATTERNS = [
         Pattern(
             name="patient_label",
-            regex=r"\b[Pp]atient:?\s+[A-Z][a-z]+(\s+[A-Z]\.?)(\s+[A-Z][a-z]+)?\b",
+            regex=r"\b[Pp]atient:?\s+(?-i:[A-Z][a-z]+(\s+[A-Z]\.?)(\s+[A-Z][a-z]+)?)\b",
             score=0.93,
         ),
         Pattern(
             name="patient_name_ref",
-            regex=r"\b[Pp]atient\s+(name:?\s+)?[A-Z][a-z]+\s+[A-Z][a-z]+\b",
+            regex=r"\b[Pp]atient\s+(name:?\s+)?(?-i:[A-Z][a-z]+\s+[A-Z][a-z]+)\b",
             score=0.90,
         ),
         Pattern(
             name="client_label",
-            regex=r"\b[Cc]lient:?\s+[A-Z][a-z]+(\s+[A-Z]\.?)(\s+[A-Z][a-z]+)?\b",
+            regex=r"\b[Cc]lient:?\s+(?-i:[A-Z][a-z]+(\s+[A-Z]\.?)(\s+[A-Z][a-z]+)?)\b",
             score=0.88,
         ),
     ]
@@ -277,27 +277,27 @@ class ProviderNameRecognizer(PatternRecognizer):
     PATTERNS = [
         Pattern(
             name="dr_prefix",
-            regex=r"\bDr\.?\s+[A-Z][a-z]+(\s+[A-Z][a-z]+)?\b",
+            regex=r"\bDr\.?\s+(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?)\b",
             score=0.75,
         ),
         Pattern(
             name="therapist_name",
-            regex=r"\b[Tt]herapist\s+[A-Z][a-z]+(\s+[A-Z][a-z]+)?\b",
+            regex=r"\b[Tt]herapist\s+(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?)\b",
             score=0.90,
         ),
         Pattern(
             name="provider_label",
-            regex=r"\b[Pp]rovider:?\s+[A-Z][a-z]+(\s+[A-Z][a-z]+)?\b",
+            regex=r"\b[Pp]rovider:?\s+(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?)\b",
             score=0.85,
         ),
         Pattern(
             name="clinician_name",
-            regex=r"\b[Cc]linician:?\s+[A-Z][a-z]+(\s+[A-Z][a-z]+)?\b",
+            regex=r"\b[Cc]linician:?\s+(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?)\b",
             score=0.88,
         ),
         Pattern(
             name="credentials",
-            regex=r"\b[A-Z][a-z]+(\s+[A-Z][a-z]+)?,?\s+(LCSW|LMFT|LPC|PsyD|PhD|LMHC|LCPC)\b",
+            regex=r"\b(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?),?\s+(LCSW|LMFT|LPC|PsyD|PhD|LMHC|LCPC)\b",
             score=0.92,
         ),
     ]
