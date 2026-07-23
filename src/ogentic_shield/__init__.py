@@ -39,7 +39,7 @@ from ogentic_shield.redaction import (
 from ogentic_shield.registry import ModelRegistry, ModelTier
 from ogentic_shield.shield import Shield
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 __all__ = [
     "Shield",
