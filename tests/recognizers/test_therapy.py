@@ -38,6 +38,13 @@ class TestPatientNameRecognizer:
         entities = [e for e in result.entities if e.category == "PATIENT_NAME"]
         assert len(entities) == 0
 
+    def test_ignores_bare_patient_word(self, therapy_shield):
+        """The common word 'patient' is not a name — must never be flagged PATIENT_NAME
+        (regression: the 'therapy-phi-patient-context' rule used to mint it)."""
+        result = therapy_shield.analyze("She is a patient.")
+        entities = [e for e in result.entities if e.category == "PATIENT_NAME"]
+        assert entities == []
+
 
 class TestDateOfBirthRecognizer:
     """Tests for DATE_OF_BIRTH detection."""
@@ -217,6 +224,13 @@ class TestMedicationRecognizer:
         result = therapy_shield.analyze("The garden needs watering today.")
         entities = [e for e in result.entities if e.category == "MEDICATION"]
         assert len(entities) == 0
+
+    def test_ignores_bare_medication_word(self, therapy_shield):
+        """'medication'/'prescribed' are context triggers, not drug names — must never be
+        flagged MEDICATION (regression: 'therapy-medication-diagnosis-boost' minted it)."""
+        result = therapy_shield.analyze("The medication list was reviewed at the appointment.")
+        entities = [e for e in result.entities if e.category == "MEDICATION"]
+        assert entities == []
 
 
 class TestProviderNameRecognizer:

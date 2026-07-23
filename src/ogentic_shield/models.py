@@ -106,6 +106,12 @@ class Rule:
     context_window: int = 200
     context_confidence_boost: float = 0.05
     enabled: bool = True
+    #: When True, the rule only boosts the confidence of already-detected entities
+    #: of the same category; it never mints a NEW entity from its own pattern match.
+    #: Use for rules whose pattern is a *context trigger word* (e.g. "patient",
+    #: "medication") rather than the sensitive value itself — otherwise the trigger
+    #: word gets mislabelled as the entity (e.g. the word "patient" -> PATIENT_NAME).
+    boost_only: bool = False
 
 
 @dataclass

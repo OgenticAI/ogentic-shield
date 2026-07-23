@@ -80,7 +80,7 @@ def run_layer2(
                     updated_entities.append(entity)
             boosted_entities = updated_entities
 
-            if not found_existing and span_key not in existing_spans:
+            if not found_existing and span_key not in existing_spans and not rule.boost_only:
                 new_entity = DetectedEntity(
                     text=text[match.start():match.end()],
                     category=rule.category,
