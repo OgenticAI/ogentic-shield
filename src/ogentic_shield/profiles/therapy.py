@@ -45,6 +45,9 @@ RULES = [
         context_patterns=["diagnosis", "treatment", "session", "medication"],
         context_window=300,
         context_confidence_boost=0.07,
+        # "patient" is a context trigger, not a name — boost real PATIENT_NAME
+        # entities near clinical markers, but never mint one from the word itself.
+        boost_only=True,
     ),
     Rule(
         id="therapy-clinical-risk-boost",
@@ -84,6 +87,9 @@ RULES = [
         context_patterns=["diagnosis", "F\\d{2}", "mg", "dosage"],
         context_window=200,
         context_confidence_boost=0.05,
+        # "medication"/"prescribed" are context triggers, not drug names — boost the
+        # MedicationRecognizer's real hits, never mint MEDICATION from the trigger word.
+        boost_only=True,
     ),
 ]
 

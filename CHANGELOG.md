@@ -7,6 +7,14 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Context-boost rules no longer mint a false entity from their trigger word.** `Rule` gains a `boost_only` flag; the `shield-therapy` rules `therapy-phi-patient-context` and `therapy-medication-diagnosis-boost` now set it. The bare word "patient" is no longer labelled `PATIENT_NAME`, and "medication"/"prescribed" no longer labelled `MEDICATION`. Real patient names and drug names (from `PatientNameRecognizer` / `MedicationRecognizer`) are unaffected and are still confidence-boosted when clinical context is nearby.
+
+---
+
 ## [0.6.0] - 2026-07-22
 
 ### Added
