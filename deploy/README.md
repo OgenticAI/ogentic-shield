@@ -26,7 +26,7 @@ listens on `$PORT` (default 8080).
 ## Deploy — Railway (OgenticAI's standard host for services)
 
 The `Dockerfile` is self-contained (build context = this `deploy/` dir) and
-installs the published wheel (`ogentic-shield[server]>=0.6.0`, which has the
+installs the published wheel (`ogentic-shield[server]>=0.6.1`, which has the
 configurable NER model). `railway.json` sets the Dockerfile + `/health` healthcheck.
 
 Dashboard: **New Project → Deploy from GitHub repo** → `OgenticAI/ogentic-shield`,
