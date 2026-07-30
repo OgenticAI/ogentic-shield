@@ -275,6 +275,12 @@ class ProviderNameRecognizer(PatternRecognizer):
     """Detects mental health provider name references."""
 
     PATTERNS = [
+        # New pattern for full title + name + credential (highest priority)
+        Pattern(
+            name="titled_provider_credentials",
+            regex=r"\b(Dr|Prof)\.?\s+(?-i:[A-Z][a-z]+(\s+[A-Z]\.?)?(\s+[A-Z][a-z]+)?),?\s+(LCSW|LMFT|LPC|PsyD|PhD|LMHC|LCPC|MD|DO|RN|NP|PA)\b",
+            score=0.95,
+        ),
         Pattern(
             name="dr_prefix",
             regex=r"\bDr\.?\s+(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?)\b",
@@ -297,7 +303,7 @@ class ProviderNameRecognizer(PatternRecognizer):
         ),
         Pattern(
             name="credentials",
-            regex=r"\b(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?),?\s+(LCSW|LMFT|LPC|PsyD|PhD|LMHC|LCPC)\b",
+            regex=r"\b(?-i:[A-Z][a-z]+(\s+[A-Z][a-z]+)?),?\s+(LCSW|LMFT|LPC|PsyD|PhD|LMHC|LCPC|MD|DO|RN|NP|PA)\b",
             score=0.92,
         ),
     ]

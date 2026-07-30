@@ -110,6 +110,46 @@ def _get_category_group(entity_type: str) -> CategoryGroup:
     return _ENTITY_CATEGORY_GROUP.get(entity_type, CategoryGroup.PII)
 
 
+def _apply_ner_blocklist(
+    entities: list[DetectedEntity], profiles: list[ShieldProfile]
+) -> list[DetectedEntity]:
+    """Filter NER-sourced PERSON entities whose text matches profile blocklists.
+
+    Only filters entities where:
+    1. detection_layer == NER (not REGEX)
+    2. category == PERSON
+    3. text (after stripping trailing punctuation) is in any profile's blocklist
+
+    This prevents common label words like "Patient:", "Attorney:", etc. from
+    being mis-identified as person names by the NER model.
+    """
+    # Combine all profile blocklists
+    combined_blocklist = set()
+    for profile in profiles:
+        # Case-insensitive comparison
+        combined_blocklist.update(word.lower() for word in profile.ner_person_blocklist)
+
+    if not combined_blocklist:
+        return entities
+
+    filtered = []
+    for entity in entities:
+        # Only check NER-sourced PERSON entities
+        if (entity.detection_layer == DetectionLayer.NER and
+            entity.category == "PERSON"):
+            # Strip trailing punctuation for comparison
+            text_clean = entity.text.rstrip(":.,-;")
+            if text_clean.lower() in combined_blocklist:
+                logger.debug(
+                    "Blocked NER PERSON entity '%s' (matches blocklist)",
+                    entity.text
+                )
+                continue
+        filtered.append(entity)
+
+    return filtered
+
+
 def _deduplicate_entities(entities: list[DetectedEntity]) -> list[DetectedEntity]:
     """Resolve overlapping entities per PRD §6.1.
 
@@ -205,6 +245,8 @@ def run_layer1(
         )
         entities.append(entity)
 
+    # Apply NER blocklist before deduplication
+    entities = _apply_ner_blocklist(entities, profiles)
     entities = _deduplicate_entities(entities)
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
