@@ -22,7 +22,7 @@ from ogentic_shield.redaction import (
     _expand_entity_types,
     _label_for,
     _resolve_categories,
-    redact_text,
+    redact_simple_text,
     unredact_text,
 )
 

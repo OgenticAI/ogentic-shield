@@ -55,7 +55,10 @@ class TestShieldMethodDeprecation:
         doc = tmp_path / "test.txt"
         doc.write_text("Email alice@example.com for details.")
 
-        with pytest.warns(DeprecationWarning, match="Shield.redact_document.*is deprecated.*v1.0.*redact_simple_document"):
+        with pytest.warns(
+            DeprecationWarning,
+            match="Shield.redact_document.*is deprecated.*v1.0.*redact_simple_document"
+        ):
             result = shield.redact_document(doc)
 
         # Verify it still works
