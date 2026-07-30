@@ -264,7 +264,7 @@ class TestPureRedactText:
                 end=41,
             ),
         ]
-        redacted, mapping = redact_text(text, entities, profile_id=None)
+        redacted, mapping = redact_simple_text(text, entities, profile_id=None)
         assert "Alice" not in redacted
         assert "bob@example.com" not in redacted
         assert unredact_text(redacted, mapping) == text
@@ -282,7 +282,7 @@ class TestPureRedactText:
                 confidence=0.85, detection_layer=DetectionLayer.NER, start=0, end=4,
             ),
         ]
-        redacted, mapping = redact_text(text, entities, profile_id=None)
+        redacted, mapping = redact_simple_text(text, entities, profile_id=None)
         # Only one token, for the longer span
         assert len(mapping.tokens) == 1
         assert "John Smith" in mapping.tokens.values()

@@ -33,13 +33,15 @@ from ogentic_shield.redaction import (
     CATEGORY_LABEL_TO_ENTITY_TYPES,
     DEFAULT_REDACT_CATEGORIES,
     PROFILE_REDACT_CATEGORIES,
+    redact_simple_text,
     redact_text,
+    unredact_simple_text,
     unredact_text,
 )
 from ogentic_shield.registry import ModelRegistry, ModelTier
 from ogentic_shield.shield import Shield
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 
 __all__ = [
     "Shield",
@@ -66,8 +68,10 @@ __all__ = [
     "list_profiles",
     "load_profile_from_yaml",
     "register_profile",
+    "redact_simple_text",
     "redact_text",
     "set_calibrator",
+    "unredact_simple_text",
     "unredact_text",
     "CATEGORY_LABEL_TO_ENTITY_TYPES",
     "DEFAULT_REDACT_CATEGORIES",

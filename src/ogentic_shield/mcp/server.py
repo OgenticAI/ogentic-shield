@@ -264,6 +264,9 @@ def build_server(
         ``shield.unredact`` (or restore manually using the returned mapping)
         on the model's response.
 
+        Note: This uses the simple stateless redaction. For production reversible
+        workflows with vault-backed mappings, use the ogentic-redact MCP server.
+
         Args:
             text: Input text.
             profile: Shield profile id; defaults to the server's startup
@@ -279,7 +282,7 @@ def build_server(
         if not text:
             raise ValueError("`text` must be a non-empty string")
         active_profile = _resolve_profile(profile, server_default_profile)
-        redacted, mapping = await async_shield.redact(
+        redacted, mapping = await async_shield.redact_simple_text(
             text,
             profile=active_profile,
             redact_categories=redact_categories,
@@ -307,7 +310,7 @@ def build_server(
             text_hash=str(mapping.get("text_hash") or ""),
             created_at=str(mapping.get("created_at") or ""),
         )
-        restored = await AsyncShield.unredact(text, rebuilt)
+        restored = await AsyncShield.unredact_simple(text, rebuilt)
         return {"text": restored}
 
     @server.tool(name="shield.profiles")
