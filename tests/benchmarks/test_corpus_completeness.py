@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 
-
 # Expected entity types per profile
 LEGAL_ENTITIES = {
     "COUNSEL_COMMUNICATION", "PRIVILEGE_MARKER", "WORK_PRODUCT",
