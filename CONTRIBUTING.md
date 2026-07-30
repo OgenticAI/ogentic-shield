@@ -218,6 +218,62 @@ class TestMyNewRecognizer:
 
 ---
 
+## Contributing to the Benchmark Corpus
+
+The benchmark corpus in `benchmarks/*.jsonl` is critical for measuring detection accuracy. We welcome contributions of new labeled examples, especially edge cases and adversarial examples.
+
+### Corpus Requirements
+
+Each JSONL file should maintain:
+- ≥200 total examples
+- ≥60% true positives (texts that SHOULD trigger detection)
+- ≤40% true negatives (benign texts)
+- ≥20% adversarial negatives (texts designed to cause false positives)
+
+### Adding Examples
+
+1. **Schema** — Each line in the JSONL must follow this format:
+   ```json
+   {
+     "id": "domain-category-number",
+     "text": "The actual text to analyze",
+     "expected_entities": [{"type": "ENTITY_TYPE"}],
+     "expected_level": "CRITICAL|HIGH|MEDIUM|LOW|NONE",
+     "category": "true_positive|true_negative|adversarial_negative",
+     "notes": "source: synthetic|public-record|case-study - description"
+   }
+   ```
+
+2. **Entity Types** — Use the exact entity type names from recognizers:
+   - Legal: `COUNSEL_COMMUNICATION`, `PRIVILEGE_MARKER`, `WORK_PRODUCT`, etc.
+   - Therapy: `PATIENT_NAME`, `DATE_OF_BIRTH`, `DIAGNOSIS_CODE`, `CLINICAL_RISK_FLAG`, etc.
+   - Finance: `MNPI_MARKER`, `MA_ACTIVITY`, `DEAL_VALUE`, `LEVERAGE_RATIO`, etc.
+
+3. **Source Attribution** — In the `notes` field, indicate:
+   - `synthetic` — Artificially created example
+   - `public-record` — From public court filings, SEC documents, etc. (include citation)
+   - `case-study` — From published case studies or academic papers (include DOI)
+
+4. **Privacy Rules**:
+   - **No real client data** — All PHI, PII, and confidential information must be synthetic
+   - **No copyright infringement** — Paraphrase rather than copying long passages
+   - **Unique identifiers** — Use different fake names/IDs across examples
+
+### Testing Your Contributions
+
+After adding examples, verify they work:
+
+```bash
+python benchmarks/run_benchmarks.py
+```
+
+Check that:
+- All JSON lines are valid
+- Entity types match those defined in recognizers
+- The profile achieves reasonable precision/recall on your examples
+
+---
+
 ## Coding Style
 
 - Follow [PEP 8](https://peps.python.org/pep-0008/) conventions

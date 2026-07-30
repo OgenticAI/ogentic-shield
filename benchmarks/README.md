@@ -7,11 +7,14 @@ precision/recall/F1, per-profile aggregates, and timing distributions.
 
 ```
 benchmarks/
-├── legal_privilege.jsonl   # 23 examples (12 TP + 6 TN + 5 adversarial)
-├── therapy_phi.jsonl       # 23 examples (12 TP + 6 TN + 5 adversarial)
-├── finance_mnpi.jsonl      # 23 examples (12 TP + 6 TN + 5 adversarial)
-├── run_benchmarks.py       # The runner
-└── README.md               # This file
+├── legal_privilege.jsonl    # 233 examples (147 TP + 41 TN + 45 adversarial)
+├── therapy_phi.jsonl        # 215 examples (129 TP + 41 TN + 45 adversarial)
+├── finance_mnpi.jsonl       # 212 examples (126 TP + 41 TN + 45 adversarial)
+├── therapy_phi_pro.jsonl    # 215 examples (130 TP + 40 TN + 45 adversarial)
+├── run_benchmarks.py        # The runner
+├── fit_calibration.py       # Calibration fitting script
+├── validate_corpus.py       # Corpus validation script
+└── README.md                # This file
 ```
 
 ## JSONL schema
