@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import secrets
+import warnings
 from datetime import datetime, timezone
 
 from ogentic_shield.models import DetectedEntity, RedactionMapping
@@ -113,7 +114,7 @@ def _short_hash(salt: str, value: str) -> str:
     return hashlib.sha256((salt + value).encode("utf-8")).hexdigest()[:6]
 
 
-def redact_text(
+def redact_simple_text(
     text: str,
     entities: list[DetectedEntity],
     profile_id: str | None = None,
@@ -131,7 +132,7 @@ def redact_text(
             ``DEFAULT_REDACT_CATEGORIES``.
 
     Returns:
-        ``(redacted_text, mapping)`` — pass ``mapping`` to ``unredact_text()``
+        ``(redacted_text, mapping)`` — pass ``mapping`` to ``unredact_simple_text()``
         to restore the original values.
     """
     categories = _resolve_categories(profile_id, redact_categories)
@@ -182,7 +183,7 @@ def redact_text(
     return "".join(parts), mapping
 
 
-def unredact_text(text: str, mapping: RedactionMapping) -> str:
+def unredact_simple_text(text: str, mapping: RedactionMapping) -> str:
     """Restore tokens in ``text`` to their original values using ``mapping``.
 
     Tokens not present in ``text`` are silently skipped — round-tripping
@@ -197,3 +198,41 @@ def unredact_text(text: str, mapping: RedactionMapping) -> str:
     for token, original in ordered:
         out = out.replace(token, original)
     return out
+
+
+def redact_text(
+    text: str,
+    entities: list[DetectedEntity],
+    profile_id: str | None = None,
+    redact_categories: list[str] | None = None,
+) -> tuple[str, RedactionMapping]:
+    """Deprecated: Use redact_simple_text() instead.
+
+    This function will be removed in v1.0. For production reversible redaction,
+    use ogentic-redact which provides vault-persisted mappings, per-call salt
+    variation, and Convert integration.
+    """
+    warnings.warn(
+        "redact_text() is deprecated and will be removed in v1.0. "
+        "Use redact_simple_text() for stateless redaction, or "
+        "ogentic-redact for production reversible workflows.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return redact_simple_text(text, entities, profile_id, redact_categories)
+
+
+def unredact_text(text: str, mapping: RedactionMapping) -> str:
+    """Deprecated: Use unredact_simple_text() instead.
+
+    This function will be removed in v1.0. For production reversible workflows,
+    use ogentic-redact.
+    """
+    warnings.warn(
+        "unredact_text() is deprecated and will be removed in v1.0. "
+        "Use unredact_simple_text() for stateless unredaction, or "
+        "ogentic-redact for production reversible workflows.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return unredact_simple_text(text, mapping)

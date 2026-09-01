@@ -7,6 +7,32 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.7.0] - TBD
+
+### Changed
+
+- **BREAKING: Redaction methods renamed to clarify stateless nature** (OGE-1010)
+  - `Shield.redact()` → `Shield.redact_simple_text()` (deprecated alias still works)
+  - `Shield.redact_document()` → `Shield.redact_simple_document()` (deprecated alias still works)
+  - `Shield.unredact()` → `Shield.unredact_simple()` (deprecated alias still works)
+  - Module functions `redact_text()` → `redact_simple_text()` (deprecated alias still works)
+  - Module functions `unredact_text()` → `unredact_simple_text()` (deprecated alias still works)
+  - AsyncShield methods follow the same pattern
+  - Old names emit `DeprecationWarning` pointing to `ogentic-redact` for production reversible workflows
+
+### Added
+
+- **Decision table in README** explaining when to use `Shield.redact_simple_*` vs `ogentic-redact`
+- **MCP server description** updated to note this uses simple stateless redaction
+
+### Deprecated
+
+- `Shield.redact()`, `Shield.redact_document()`, `Shield.unredact()` - will be removed in v1.0
+- Module functions `redact_text()`, `unredact_text()` - will be removed in v1.0
+- Use the `_simple_` variants for clarity, or migrate to `ogentic-redact` for production workflows
+
+---
+
 ## [0.6.1] - 2026-07-23
 
 ### Fixed

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -26,7 +27,6 @@ from ogentic_shield.models import (
 from ogentic_shield.pipeline import run_pipeline
 from ogentic_shield.profiles import get_profile
 from ogentic_shield.profiles import list_profiles as _list_profiles
-from ogentic_shield.redaction import redact_text, unredact_text
 from ogentic_shield.registry import ROLE_CLASSIFICATION, ModelRegistry, ModelTier
 
 logger = logging.getLogger("ogentic_shield")
@@ -120,18 +120,21 @@ class Shield:
             ner_model=self._config.ner_model,
         )
 
-    def redact(
+    def redact_simple_text(
         self,
         text: str,
         profile: str | None = None,
         redact_categories: list[str] | None = None,
         min_confidence: float | None = None,
     ) -> tuple[str, RedactionMapping]:
-        """Substitute identifying entities with deterministic tokens.
+        """Substitute identifying entities with deterministic tokens (simple, stateless).
 
         Use this before sending text to an external LLM — it masks "who" while
         preserving "how big" (numbers, ratios, percentages stay intact). Pair
-        with :py:meth:`unredact` to restore originals from the LLM response.
+        with :py:meth:`unredact_simple` to restore originals from the LLM response.
+
+        Note: For production use with reversibility, vault-backed mappings, and
+        per-call salt variation, use ``ogentic-redact`` instead.
 
         Args:
             text: Input text.
@@ -143,20 +146,87 @@ class Shield:
             min_confidence: Minimum entity confidence threshold for masking.
 
         Returns:
-            ``(redacted_text, mapping)``. Pass ``mapping`` to ``unredact()``.
+            ``(redacted_text, mapping)``. Pass ``mapping`` to ``unredact_simple()``.
         """
+        from ogentic_shield.redaction import redact_simple_text
+
         profile_id = profile or self._profile_ids[0]
         result = self.analyze(
             text,
             profiles=[profile_id],
             min_confidence=min_confidence,
         )
-        return redact_text(text, result.entities, profile_id, redact_categories)
+        return redact_simple_text(text, result.entities, profile_id, redact_categories)
+
+    @staticmethod
+    def unredact_simple(text: str, mapping: RedactionMapping) -> str:
+        """Restore tokens in ``text`` to their original values using ``mapping`` (simple, stateless).
+
+        Note: For production use with reversible vault-backed mappings,
+        use ``ogentic-redact`` instead.
+        """
+        from ogentic_shield.redaction import unredact_simple_text
+        return unredact_simple_text(text, mapping)
+
+    def redact_text(
+        self,
+        text: str,
+        profile: str | None = None,
+        redact_categories: list[str] | None = None,
+        min_confidence: float | None = None,
+    ) -> tuple[str, RedactionMapping]:
+        """Deprecated: Use redact_simple_text() instead.
+
+        This method will be removed in v1.0. For production reversible redaction,
+        use ogentic-redact which provides vault-persisted mappings, per-call salt
+        variation, and Convert integration.
+        """
+        warnings.warn(
+            "Shield.redact_text() is deprecated and will be removed in v1.0. "
+            "Use Shield.redact_simple_text() for stateless redaction, or "
+            "ogentic-redact for production reversible workflows.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.redact_simple_text(text, profile, redact_categories, min_confidence)
+
+    def redact(
+        self,
+        text: str,
+        profile: str | None = None,
+        redact_categories: list[str] | None = None,
+        min_confidence: float | None = None,
+    ) -> tuple[str, RedactionMapping]:
+        """Deprecated: Use redact_simple_text() instead.
+
+        This method will be removed in v1.0. For production reversible redaction,
+        use ogentic-redact which provides vault-persisted mappings, per-call salt
+        variation, and Convert integration.
+        """
+        warnings.warn(
+            "Shield.redact() is deprecated and will be removed in v1.0. "
+            "Use Shield.redact_simple_text() for stateless redaction, or "
+            "ogentic-redact for production reversible workflows.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.redact_simple_text(text, profile, redact_categories, min_confidence)
 
     @staticmethod
     def unredact(text: str, mapping: RedactionMapping) -> str:
-        """Restore tokens in ``text`` to their original values using ``mapping``."""
-        return unredact_text(text, mapping)
+        """Deprecated: Use unredact_simple() instead.
+
+        This method will be removed in v1.0. For production reversible workflows,
+        use ogentic-redact.
+        """
+        warnings.warn(
+            "Shield.unredact() is deprecated and will be removed in v1.0. "
+            "Use Shield.unredact_simple() for stateless unredaction, or "
+            "ogentic-redact for production reversible workflows.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return Shield.unredact_simple(text, mapping)
 
     def analyze_batch(
         self,
@@ -361,7 +431,7 @@ class Shield:
             extraction_warnings=[],  # Phase 2 extractors will populate this.
         )
 
-    def redact_document(
+    def redact_simple_document(
         self,
         path: str | Path,
         *,
@@ -372,9 +442,9 @@ class Shield:
         min_confidence: float | None = None,
         chunk_chars: int = DEFAULT_CHUNK_CHARS,
     ) -> DocumentRedactionResult:
-        """Redact regulatory-sensitive content from a document (OGE-792).
+        """Redact regulatory-sensitive content from a document (simple, stateless).
 
-        The document-level pair to :meth:`redact` — same redaction engine,
+        The document-level pair to :meth:`redact_simple_text` — same redaction engine,
         same per-profile defaults, same token format
         (``[Label_abc123]``), but takes a file path and returns a
         :class:`~ogentic_shield.documents.DocumentRedactionResult` carrying
@@ -383,7 +453,7 @@ class Shield:
         that drove the redaction.
 
         Composes :meth:`analyze_document` and
-        :func:`~ogentic_shield.redaction.redact_text` — no duplicate
+        :func:`~ogentic_shield.redaction.redact_simple_text` — no duplicate
         parsing or scoring logic; aggregation semantics are identical to
         what :meth:`analyze_document` returns.
 
@@ -398,7 +468,7 @@ class Shield:
                 exclusive with ``profiles``; if both are ``None``, falls
                 back to the first profile this Shield was initialized
                 with. Selects which per-profile defaults
-                :func:`redact_text` uses when ``redact_categories`` is
+                :func:`redact_simple_text` uses when ``redact_categories`` is
                 also ``None``.
             profiles: Multiple profile IDs to run through analysis. The
                 first is used as the redaction-defaults selector when
@@ -416,7 +486,7 @@ class Shield:
         Returns:
             :class:`DocumentRedactionResult` with ``path``, ``format``,
             ``original_text``, ``redacted_text``, ``mapping``, and the
-            driving ``analysis``. ``unredact_text(redacted_text, mapping)``
+            driving ``analysis``. ``unredact_simple_text(redacted_text, mapping)``
             round-trips to ``original_text`` for the redacted tokens.
 
         Raises:
@@ -443,10 +513,12 @@ class Shield:
         # Pick the profile that drives redaction-category defaults. Caller's
         # explicit ``profile`` wins; otherwise first of ``profiles`` /
         # Shield-init profiles.
+        from ogentic_shield.redaction import redact_simple_text
+
         defaults_profile = profile or (
             active_profiles[0] if active_profiles else self._profile_ids[0]
         )
-        redacted_text, mapping = redact_text(
+        redacted_text, mapping = redact_simple_text(
             text,
             analysis.aggregate.entities,
             defaults_profile,
@@ -460,6 +532,40 @@ class Shield:
             redacted_text=redacted_text,
             mapping=mapping,
             analysis=analysis,
+        )
+
+    def redact_document(
+        self,
+        path: str | Path,
+        *,
+        profile: str | None = None,
+        profiles: list[str] | None = None,
+        redact_categories: list[str] | None = None,
+        layers: list[DetectionLayer] | None = None,
+        min_confidence: float | None = None,
+        chunk_chars: int = DEFAULT_CHUNK_CHARS,
+    ) -> DocumentRedactionResult:
+        """Deprecated: Use redact_simple_document() instead.
+
+        This method will be removed in v1.0. For production reversible redaction,
+        use ogentic-redact which provides vault-persisted mappings, per-call salt
+        variation, and Convert integration.
+        """
+        warnings.warn(
+            "Shield.redact_document() is deprecated and will be removed in v1.0. "
+            "Use Shield.redact_simple_document() for stateless redaction, or "
+            "ogentic-redact for production reversible workflows.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.redact_simple_document(
+            path,
+            profile=profile,
+            profiles=profiles,
+            redact_categories=redact_categories,
+            layers=layers,
+            min_confidence=min_confidence,
+            chunk_chars=chunk_chars,
         )
 
     def required_models(self, tier: str | ModelTier | None = None) -> list[str]:
