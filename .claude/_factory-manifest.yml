@@ -4,9 +4,9 @@
 manifest_version: 1
 factory_source: "https://github.com/OgenticAI/agent-factory"
 
-synced_kit_sha: "633a6d5ac8815ae27e02e573290a2f9dfa277da1"
-synced_kit_hash: "8756318c2ee82275d7f39148426665bf2db5d955a69201b7299d6f334d46401b"
-synced_at: "2026-09-03T04:28:28.903410+00:00"
+synced_kit_sha: "56f5149ffb591dd64283849ffc30167383da10cc"
+synced_kit_hash: "9c40fb605b6f63d7b755adda9145e2493a0417936dd86284acb85f8ef1365a88"
+synced_at: "2026-09-03T06:19:52.284202+00:00"
 
 files:
   - path: .claude/CLAUDE-FACTORY.md
@@ -65,6 +65,8 @@ files:
     content_sha256: e36ac616e6f0a26b8e5ebd8483f99751a43cbf99ef2feb70f0cf4412a93309ac
   - path: .claude/hooks/tests/test-pre-commit.sh
     content_sha256: 15e7fdf20bab3b6210d9342ddbf1ba39395a189e9b2c4477c9f12f99fcf6d092
+  - path: .claude/registry/repos.yml.template
+    content_sha256: af07cd3d9e0fc45469325d6426cd3757eaa4df8052d50d5aef128b2afe81c951
   - path: .claude/runbooks/agent-access-resolution.md
     content_sha256: 09c9a6aeede4f5b22bb9ac9a05027ba8fe9fa986691669b0371b9095a0cc7483
   - path: .claude/scripts/factory-linear-comment.sh
