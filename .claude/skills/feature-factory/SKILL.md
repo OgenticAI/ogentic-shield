@@ -33,7 +33,7 @@ When the env var `FACTORY_HEADLESS=true` is set (the multi-repo auto-loop driver
 | **Checkpoint 1 — story approval** | Linear ticket must have label `auto-eligible` AND `description.length >= 200` AND contain ≥1 acceptance criterion (a line matching `Acceptance criteria` / `AC:` / a numbered `1.` list under that header). |
 | **Checkpoint 2 — brief approval** | spec-writer's brief must (a) pass the project's `gate_lint` + `gate_typecheck` from `factories.yml`, and (b) include both a `Files` section and an `Acceptance criteria` section. Heuristic-graded. |
 | **Checkpoint 2.5 — design approval** (UI tickets only) | No human eyeballing of mockups. `design-architect` still writes the dossier under `design/<OGE-xxx>/` and proceeds; the fidelity loop is enforced *after* the build by **design-fidelity-checker** (§2 step 17), which renders the implementation and diffs it against that dossier + the Claude Design export. A Critical fidelity mismatch escalates like any reviewer (`design-fidelity-blocked` → `needs-human-review` + `FACTORY_BLOCKED`). Non-UI tickets skip this row entirely. |
-| **Checkpoint 3 — PR approval** | **CI green + branch protection.** PR opens with `gh pr merge --auto --squash`; auto-merge fires on green. If CI red after 3 retries, escalate. |
+| **Checkpoint 3 — PR approval** | **CI green + branch protection.** PR opens with `gh pr merge --auto --squash`; auto-merge fires on green. If CI red after 3 retries, escalate. This assumes the repo meets §F9 of `CLAUDE-FACTORY.md`. If `gh pr merge --auto` is refused, or the default branch requires no status check, run `.claude/scripts/harden-repo.py --repo <owner/name>` and report what it says before merging anything. |
 
 ### Escalation pattern (used by all three gates)
 
