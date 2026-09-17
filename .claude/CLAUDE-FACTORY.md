@@ -294,4 +294,31 @@ Beyond the factory mechanics above, every OgenticAI agent shares a **core canon*
 
 ---
 
+## §F9 — Repository settings: CI is the merge gate
+
+Every OgenticAI repo the factory works in carries the same settings. They are applied by `.claude/scripts/harden-repo.py`, which `repo-create` runs for new repos and which backfilled the existing ones (OGE-2818). One script, so a new repo and an old one cannot drift apart.
+
+**CI is the merge gate on agent repos.** A PR merges when its required status checks pass. That is the whole gate.
+
+**Required approving reviews stay at 0.** Agents author their PRs as `den-ogenticai`, and GitHub does not let an account approve its own pull request. A repo that requires one approval therefore blocks every agent PR permanently, however green its CI. If a repo needs human review on some changes, put CODEOWNERS on those paths. A blanket approval count blocks the agents along with everyone else.
+
+The settings, per repo:
+
+| Setting | Value | Why |
+| -- | -- | -- |
+| `allow_auto_merge` | `true` | `gh pr merge --auto` needs it. Without it an agent PR waits for a person who is not coming |
+| `delete_branch_on_merge` | `true` | Merged branches do not pile up |
+| Branch protection on the default branch | at least one required status check | Protection that requires nothing gates nothing, and reads as configured |
+| Required check names | discovered, never hardcoded | Only a check that ran on every recent merged PR is required |
+| Required approving reviews | `0` | See above |
+
+Two things `harden-repo.py` refuses to do, and every agent should refuse them too:
+
+1. **Create protection that requires nothing.** A repo with no CI needs CI first. Report it; do not paper over it with an empty rule.
+2. **Require a check that does not run on every PR.** A check behind a `paths:` filter, or one that skips on some PRs, strands each PR it does not run on.
+
+**Secret scanning, push protection and Dependabot security updates are organisation-level defaults**, set once for every current and future repo rather than per repo. Do not enable them repo by repo; that is the pattern OGE-2818 exists to end. On private repositories secret scanning is a paid add-on, so enabling it is an organisation spending decision that sits outside the factory.
+
+---
+
 — end of factory partial —
