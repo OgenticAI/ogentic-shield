@@ -208,7 +208,7 @@ When the kit on `OgenticAI/agent-factory` changes (a new agent role, a tightened
   - new file → copied in (additive)
   - file unchanged since the last sync → overwritten with the new kit version
   - file hand-edited locally → **left alone**; the divergence is listed in the sync PR body
-  - file path in `opt_out:` → skipped entirely
+  - file path in `opt_out:`, or under a directory listed there → skipped entirely
 - Purely-additive sync PRs with no preserved local edits get the `factory-sync-auto-merge` label and merge themselves once CI is green. Anything else waits for human review.
 
 **Files the propagator never touches**
@@ -227,6 +227,15 @@ opt_out:
 ```
 
 After that, propagation will never overwrite the file in this repo.
+
+To keep a whole directory out, list the directory. It also covers files the kit adds to that directory later, which a list of file paths cannot:
+
+```yaml
+opt_out:
+  - .claude/agents/
+```
+
+An entry that matches no kit file is reported in the propagation run's summary, because a misspelt entry protects nothing.
 
 **Forcing a re-sync**
 
