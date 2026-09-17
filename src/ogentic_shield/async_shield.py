@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import warnings
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
@@ -109,6 +110,22 @@ class AsyncShield:
             include_context,
         )
 
+    async def redact_simple_text(
+        self,
+        text: str,
+        profile: str | None = None,
+        redact_categories: list[str] | None = None,
+        min_confidence: float | None = None,
+    ) -> tuple[str, RedactionMapping]:
+        """Async passthrough to :meth:`Shield.redact_simple_text`."""
+        return await asyncio.to_thread(
+            self._shield.redact_simple_text,
+            text,
+            profile,
+            redact_categories,
+            min_confidence,
+        )
+
     async def redact(
         self,
         text: str,
@@ -116,19 +133,49 @@ class AsyncShield:
         redact_categories: list[str] | None = None,
         min_confidence: float | None = None,
     ) -> tuple[str, RedactionMapping]:
-        """Async passthrough to :meth:`Shield.redact`."""
-        return await asyncio.to_thread(
-            self._shield.redact,
-            text,
-            profile,
-            redact_categories,
-            min_confidence,
+        """Deprecated: Use redact_simple_text() instead."""
+        warnings.warn(
+            "AsyncShield.redact() is deprecated and will be removed in v1.0. "
+            "Use AsyncShield.redact_simple_text() for stateless redaction, or "
+            "ogentic-redact for production reversible workflows.",
+            DeprecationWarning,
+            stacklevel=2
         )
+        return await self.redact_simple_text(text, profile, redact_categories, min_confidence)
+
+    async def redact_text(
+        self,
+        text: str,
+        profile: str | None = None,
+        redact_categories: list[str] | None = None,
+        min_confidence: float | None = None,
+    ) -> tuple[str, RedactionMapping]:
+        """Deprecated: Use redact_simple_text() instead."""
+        warnings.warn(
+            "AsyncShield.redact_text() is deprecated and will be removed in v1.0. "
+            "Use AsyncShield.redact_simple_text() for stateless redaction, or "
+            "ogentic-redact for production reversible workflows.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return await self.redact_simple_text(text, profile, redact_categories, min_confidence)
+
+    @staticmethod
+    async def unredact_simple(text: str, mapping: RedactionMapping) -> str:
+        """Async passthrough to :meth:`Shield.unredact_simple`."""
+        return await asyncio.to_thread(Shield.unredact_simple, text, mapping)
 
     @staticmethod
     async def unredact(text: str, mapping: RedactionMapping) -> str:
-        """Async passthrough to :meth:`Shield.unredact`."""
-        return await asyncio.to_thread(Shield.unredact, text, mapping)
+        """Deprecated: Use unredact_simple() instead."""
+        warnings.warn(
+            "AsyncShield.unredact() is deprecated and will be removed in v1.0. "
+            "Use AsyncShield.unredact_simple() for stateless unredaction, or "
+            "ogentic-redact for production reversible workflows.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return await AsyncShield.unredact_simple(text, mapping)
 
     async def analyze_stream(
         self,

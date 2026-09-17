@@ -428,7 +428,18 @@ print(profile.supported_entities)
 
 `Shield.analyze()` **classifies** &mdash; it tells you what's in the text and how sensitive it is. It does not modify the content.
 
-`Shield.redact()` **rewrites** &mdash; it substitutes identifying entities with deterministic tokens before you send the text to an external LLM, then `Shield.unredact()` restores them on the response.
+`Shield.redact_simple_text()` **rewrites** &mdash; it substitutes identifying entities with deterministic tokens before you send the text to an external LLM, then `Shield.unredact_simple()` restores them on the response.
+
+### Which redaction approach should I use?
+
+| Need | Use | Why |
+| -- | -- | -- |
+| Mask sensitive entities once, no state | `Shield.redact_simple_*` | Stateless, one-call, no extra dep |
+| Reversible after a model round-trip | `ogentic-redact` | Vault-persisted mappings per matter |
+| Per-call salt (token-reversal protection across observed prompts) | `ogentic-redact` | Per-call salt; same value → different tokens |
+| Category-tiebreaker / per-profile defaults | `ogentic-redact` | Workflow policy lives here |
+| Convert integration (synthetic replicas) | `ogentic-redact` | Hand-off interface |
+| Streaming / live-audio redaction | `ogentic-redact` | `redact_stream()` API |
 
 ### The principle: anonymity = masking *who*, not *how big*
 
@@ -457,7 +468,7 @@ text = (
     "representing a 5.2x EBITDA multiple. Contact: john@example.com."
 )
 
-redacted, mapping = shield.redact(text)
+redacted, mapping = shield.redact_simple_text(text)
 # redacted ≈ "[Sponsor_a3f9b1] is advising [Person_b7e0c4] on the acquisition
 #            at $47/share, representing a 5.2x EBITDA multiple.
 #            Contact: [Email_4d2af1]."
@@ -465,7 +476,7 @@ redacted, mapping = shield.redact(text)
 
 response = call_external_llm(redacted)
 
-original = Shield.unredact(response, mapping)
+original = Shield.unredact_simple(response, mapping)
 # Tokens in the response are restored to "Goldman Sachs", "John Smith", etc.
 ```
 
@@ -489,10 +500,10 @@ Override per call:
 
 ```python
 # Mask only emails
-redacted, mapping = shield.redact(text, redact_categories=["Email"])
+redacted, mapping = shield.redact_simple_text(text, redact_categories=["Email"])
 
 # Power-user: pass underlying entity types directly
-redacted, mapping = shield.redact(text, redact_categories=["INSTITUTION_NAME", "PERSON"])
+redacted, mapping = shield.redact_simple_text(text, redact_categories=["INSTITUTION_NAME", "PERSON"])
 ```
 
 Available labels: `Person`, `Address`, `Sponsor`, `Email`, `Phone`, `Ssn`, `DateOfBirth`, `InsuranceId`, `MedicalLicense`, `CaseNumber`, `BatesNumber`, `Diagnosis`, `Medication`, `CreditCard`, `BankNumber`, `Url`, `IpAddress`, `Passport`, `Itin`, `DriverLicense`, `DateTime`, `Iban`, `Nationality`.
@@ -532,8 +543,8 @@ Equivalent module form: `python -m ogentic_shield.mcp --profile shield-legal`.
 | Tool | Purpose |
 |------|---------|
 | `shield.analyze` | Classify text. Returns score, level, routing suggestion, and shape-only entities (no raw matched text by default). |
-| `shield.redact` | Substitute identifying entities with deterministic tokens. Returns `redacted_text` and a reversible `mapping`. |
-| `shield.unredact` | Restore tokens in (model-rewritten) text using the mapping returned by `shield.redact`. |
+| `shield.redact_simple_text` | Substitute identifying entities with deterministic tokens. Returns `redacted_text` and a reversible `mapping`. |
+| `shield.unredact_simple` | Restore tokens in (model-rewritten) text using the mapping returned by `shield.redact_simple_text`. |
 | `shield.profiles` | List loaded profiles, supported entity categories, and the server's startup default. |
 
 ### Privacy invariants
@@ -778,7 +789,7 @@ Not yet in v0.1. A Docker image is planned for v0.2 alongside the HTTP API serve
 | `AsyncShield` + `analyze_stream()` for non-blocking UI integration | v0.2.0 | Shipped |
 | `Shield.analyze_batch()` with parallel processing and per-item error containment | v0.2.0 | Shipped |
 | MCP server tools fully async (`shield.analyze_batch` added) | v0.2.0 | Shipped |
-| MCP server (`shield.analyze`, `shield.redact`, `shield.profiles`) | v0.2.0 | Planned |
+| MCP server (`shield.analyze`, `shield.redact`, `shield.profiles`) | v0.2.0 | Shipped |
 | Audit event emission for ogentic-audit | v0.2.0 | Planned |
 | Custom profile loading from YAML | v0.2.0 | Planned |
 | Docker image | v0.2.0 | Planned |
