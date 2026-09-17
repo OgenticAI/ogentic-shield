@@ -93,6 +93,16 @@ SCORING_WEIGHTS = {
     CategoryGroup.CONFIDENTIAL: 10,
 }
 
+# NER PERSON blocklist for legal context
+_NER_PERSON_BLOCKLIST = frozenset([
+    "Attorney",
+    "Counsel",
+    "Plaintiff",
+    "Defendant",
+    "Client",
+    "Party",
+])
+
 
 def create_profile() -> ShieldProfile:
     return ShieldProfile(
@@ -104,4 +114,5 @@ def create_profile() -> ShieldProfile:
         rules=RULES,
         scoring_weights=SCORING_WEIGHTS,
         supported_entities=[r.supported_entities[0] for r in RECOGNIZERS],
+        ner_person_blocklist=_NER_PERSON_BLOCKLIST,
     )
