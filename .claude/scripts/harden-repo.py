@@ -62,6 +62,24 @@ PR_SAMPLE = 5
 MIN_PRS_FOR_EVIDENCE = 2
 # A check-run in any of these conclusions did not really run on that PR.
 DID_NOT_RUN = {"skipped", "neutral", "stale", "cancelled", None}
+# Only GitHub Actions counts as CI. Other apps post check-runs too, and the
+# first org dry run would have required one of them: `Vercel Preview Comments`,
+# Vercel's PR-comment integration, on 10 repos.
+CI_APP = "github-actions"
+# Actions workflows that are not CI and must never become a merge gate.
+# The OgenticAI Reviewer job calls the Anthropic API and Linear, and it ships
+# deliberately advisory (`fail_on: ""`, "flip after you trust the verdicts").
+# Requiring it would turn an advisory review into a blocking one and stop every
+# merge whenever the AI credit runs out. On 6 repos it was the only candidate.
+NOT_CI_WORKFLOWS = {
+    ".github/workflows/ogenticai-reviewer.yml",
+    ".github/workflows/uat-override.yml",
+}
+# Matched by workflow name as well as path, because the reviewer is not always
+# in the same file: agent-reviewer runs it from `self-review.yml`. Every copy is
+# named "OgenticAI Reviewer". The deterministic UAT lint has a different name
+# ("OgenticAI Reviewer — UAT Lint") and stays eligible.
+NOT_CI_WORKFLOW_NAMES = {"OgenticAI Reviewer"}
 
 
 # --------------------------------------------------------------------------
@@ -107,6 +125,27 @@ def discover_required_checks(pr_check_names: list[set[str]]) -> list[str]:
         return []
     common = set.intersection(*sample) if sample else set()
     return sorted(common)
+
+
+def ci_check_names(check_runs: list[dict], workflow_for_suite: dict) -> set[str]:
+    """The check names on one commit that are CI and actually ran.
+
+    `workflow_for_suite` maps a check suite id to `{"path", "name"}` of the
+    workflow that produced it, so a job is judged by its workflow rather than by
+    its own name. A job called `review` is CI in one repo and the AI reviewer in
+    another.
+    """
+    names = set()
+    for cr in check_runs:
+        if cr.get("conclusion") in DID_NOT_RUN:
+            continue
+        if (cr.get("app") or {}).get("slug") != CI_APP:
+            continue
+        wf = workflow_for_suite.get((cr.get("check_suite") or {}).get("id")) or {}
+        if wf.get("path") in NOT_CI_WORKFLOWS or wf.get("name") in NOT_CI_WORKFLOW_NAMES:
+            continue
+        names.add(cr["name"])
+    return names
 
 
 def plan_repo(s: RepoState) -> Plan:
@@ -270,12 +309,12 @@ def read_state(full_name: str) -> RepoState:
     for pr in merged:
         sha = pr["head"]["sha"]
         _, runs = gh(f"repos/{full_name}/commits/{sha}/check-runs?per_page=100")
-        names = {
-            cr["name"]
-            for cr in ((runs or {}).get("check_runs") or [])
-            if cr.get("conclusion") not in DID_NOT_RUN
-        }
-        s.pr_check_names.append(names)
+        check_runs = (runs or {}).get("check_runs") or []
+        workflows = {}
+        _, wr = gh(f"repos/{full_name}/actions/runs?head_sha={sha}&per_page=100")
+        for run in ((wr or {}).get("workflow_runs") or []):
+            workflows[run.get("check_suite_id")] = {"path": run.get("path"), "name": run.get("name")}
+        s.pr_check_names.append(ci_check_names(check_runs, workflows))
     return s
 
 

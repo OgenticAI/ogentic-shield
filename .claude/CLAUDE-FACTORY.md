@@ -309,7 +309,7 @@ The settings, per repo:
 | `allow_auto_merge` | `true` | `gh pr merge --auto` needs it. Without it an agent PR waits for a person who is not coming |
 | `delete_branch_on_merge` | `true` | Merged branches do not pile up |
 | Branch protection on the default branch | at least one required status check | Protection that requires nothing gates nothing, and reads as configured |
-| Required check names | discovered, never hardcoded | Only a check that ran on every recent merged PR is required |
+| Required check names | discovered, never hardcoded | Only a GitHub Actions check that ran on every recent merged PR. Never another app's check, and never the OgenticAI Reviewer, which is advisory and depends on AI credit |
 | Required approving reviews | `0` | See above |
 
 Two things `harden-repo.py` refuses to do, and every agent should refuse them too:
