@@ -84,27 +84,41 @@ with the agent (OGE-2797).
    | 07 Reporting | How do activity, failures and cost report? |
    | 08 Harm | Who could it harm, how, and what would they do about it? |
 
-2. **Before question 03, show the agents already near this job.** Read the roles on Mission
-   Control's `/fleet` (or `registry/teammate-agents.yml` in agentshub) and list every agent whose
-   role shares a meaningful word with this agent's job. Ignore filler like "agent" and "team";
-   division alone is not an overlap. Ask the operator to answer question 03 with that list in
-   view. **Warn, never block**: an adjacent job is sometimes a real second agent.
+2. **Before question 03, show the agents already near this job.** Read the `scope:` of every entry
+   in agentshub's `registry/teammate-agents.yml` and list each agent whose scope shares two or more
+   meaningful words with this agent's job (one is enough when that scope is a single short line).
+   Ignore filler such as "agent", "OgenticAI" and "team"; a shared division is not an overlap. Ask the
+   operator to answer question 03 with that list in view. **Warn, never block**: an adjacent job is
+   sometimes a real second agent. Mission Control computes its own list when the answers are filed
+   there (step 4) and stores it with its record.
 
-3. **Write `docs/decisions/0001-<agent-id>-charter.md`** from the template below and commit it with
-   the bootstrap. `<agent-id>` is the slug the agent will have in Mission Control (the same one
-   its Slack token variable is named after), so the path matches what Mission Control writes.
+3. **If the agent already has a Mission Control row, stop here and file the answers on its Charter
+   tab instead** (`/fleet/<agent-id>?tab=charter`). Mission Control delivers the record itself, by pull
+   request. Writing the file here as well would give the repo two authors for one record.
 
-4. **File the same answers in Mission Control once the agent's registry row exists** (the
-   playbook's Path B, step 5): `/fleet/<agent-id>?tab=charter`. Mission Control finds this file
-   already on the default branch, records it as present and does not overwrite it. Until then
-   the `/fleet` sweep lists the agent as having no charter. That is intended: the sweep reads
-   Mission Control, not repos.
+   Otherwise, write `docs/decisions/0001-<agent-id>-charter.md` from the template below and commit it
+   with the bootstrap. `<agent-id>` is the slug the agent will have in Mission Control (the same one its
+   Slack token variable is named after), so the path matches what Mission Control writes.
 
-**A filed record is never edited.** When the agent's remit changes, file a new record on its
-Charter tab. It becomes `0002`, Mission Control opens a PR adding `0002-<agent-id>-charter.md`,
-and `0001` stays as it was written.
+4. **Once the bootstrap PR has merged AND the agent's registry row exists** (the playbook's Path B,
+   step 5), file the same eight answers, word for word, on `/fleet/<agent-id>?tab=charter`:
+   - The row must name this repo for records. If its `config.slack.repo` does not, set **Record repo** on
+     the same tab; that changes where records go, never where the agent runs.
+   - Mission Control finds the file on the default branch, records it as present and does not
+     overwrite it. It checks that the file is there, not what it says, which is why the answers must be
+     the same.
+   - Filing before the bootstrap PR merges makes Mission Control open a competing PR for the same file.
 
-The template, in the same shape Mission Control renders:
+   Until step 4, the `/fleet` sweep lists the agent as having no charter. That is intended: the sweep
+   reads Mission Control, not repos.
+
+**A filed record's answers are never edited.** When the agent's remit changes, file a new record on its
+Charter tab. It becomes `0002`: Mission Control opens one PR that adds `0002-<agent-id>-charter.md` and
+changes only the Status line of `0001` to Superseded.
+
+The template, in the same shape Mission Control renders. Every answer line is quoted with `> `, and
+any `&` or `<` in an answer is written as `&amp;` or `&lt;`, so an answer can never read as part of the
+record's structure (raw HTML such as `</blockquote>` would end the quote on GitHub):
 
 ```markdown
 # 0001. <Display name> charter
@@ -118,43 +132,43 @@ The template, in the same shape Mission Control renders:
 
 **01 Principal.** Who does it serve?
 
-<answer>
+> <answer>
 
 **03 Incumbent.** Who holds that job today, and why is that not enough?
 
-<answer>
+> <answer>
 
 Existing agents shown as overlapping when this was filed (question 03 was answered with these in view):
 
-- `<agent-id>` (<division>) — <role> — shared: <words>
+- `<other-agent-id>` (<division>) — <role or scope> — shared: <words>
 
 ## Decision
 
 **02 Job.** What job does it hold?
 
-<answer>
+> <answer>
 
 **04 Harnesses.** Where does it run?
 
-<answer>
+> <answer>
 
 **05 Memory.** Where does its memory start and stop?
 
-<answer>
+> <answer>
 
 ## Consequences
 
 **06 Tier.** What sits behind approval?
 
-<answer>
+> <answer>
 
 **07 Reporting.** How do activity, failures and cost report?
 
-<answer>
+> <answer>
 
 **08 Harm.** Who could it harm, how, and what would they do about it?
 
-<answer>
+> <answer>
 
 ---
 
@@ -162,7 +176,8 @@ Filed through repo-bootstrap (OGE-2797). This record is not edited. When the rem
 ```
 
 If no agent overlapped, replace the overlap list with the line
-`No existing agent was shown as overlapping when this was filed.`
+`No existing agent was shown as overlapping when this was filed.` A multi-paragraph answer keeps a
+bare `>` on its blank lines.
 
 ## Output: the next-step checklist
 
@@ -189,8 +204,9 @@ Next steps (in this order):
 
 4. After 3 features, the factory will know this repo.
 
-5. New agent only: once its registry row exists, file the same eight
-   answers at /fleet/<agent-id>?tab=charter. Mission Control finds
+5. New agent only: once the bootstrap PR has merged and its registry
+   row exists, file the same eight answers, word for word, at
+   /fleet/<agent-id>?tab=charter. Mission Control finds
    docs/decisions/0001-<agent-id>-charter.md and does not overwrite it.
 ```
 
@@ -200,5 +216,6 @@ Next steps (in this order):
 - Don't auto-add the registry to git (it may reference private repos by URL).
 - Don't enable factory-aware GitHub Actions automatically; that is a follow-up the human chooses.
 - Don't drop the agent-scaffold `src/` over an existing agent's code; only scaffold a fresh repo.
-- Don't edit a filed charter in `docs/decisions/`. A changed remit is a new record that supersedes it.
+- Don't edit a filed charter's answers in `docs/decisions/`. A changed remit is a new record that supersedes it, filed on the agent's Charter tab.
+- Don't write `0001` here for an agent that already has a Mission Control row; its Charter tab delivers the record.
 - Don't hand-write a raw `@anthropic-ai/sdk` / `@ai-sdk/*` / `openai` client in an agent — route every call through `@ogenticai/agent-core`, or the gate fails the build.
