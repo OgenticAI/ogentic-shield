@@ -4,9 +4,9 @@
 manifest_version: 1
 factory_source: "https://github.com/OgenticAI/agent-factory"
 
-synced_kit_sha: "3c8b97119368c258169ce5acf0bae94b270831db"
-synced_kit_hash: "ec7dfcd92e4b05a6d4de3c1ef297d8623fbc6254447eb27964e9213cbbea04f1"
-synced_at: "2026-09-17T13:40:51.955867+00:00"
+synced_kit_sha: "60b80b387a62aebe3a8577447144fcdc99bb6df4"
+synced_kit_hash: "6d9003f260d87f46c79da45c5b963c65dbad636518c9a8854218a0921f9cf89b"
+synced_at: "2026-09-17T13:48:58.364862+00:00"
 
 files:
   - path: .claude/CLAUDE-FACTORY.md
@@ -90,7 +90,7 @@ files:
   - path: .claude/skills/project-planner/SKILL.md
     content_sha256: 5121a9e93d264042ce7caccbfe46214a9d089115b7e804e5376c13f9f17b1d87
   - path: .claude/skills/repo-bootstrap/SKILL.md
-    content_sha256: bb1c0359bc09d39e70baae70b11e599701aa9582401eaaee9e6192de856b4483
+    content_sha256: 4b87098f1c8f21ed7d22c46ecdb2cc4d8e6874a845f96cead5259d2ba0e92f91
   - path: .claude/skills/repo-create/SKILL.md
     content_sha256: e39f5109e84a1bd692f77d8fac0c1d8fd34cba8427c5382cd451935ceee73637
   - path: .claude/skills/setup-check/SKILL.md
