@@ -56,6 +56,11 @@ Classify every action before doing it:
 
 - **Post as your OWN bot identity**, never as a human. Never the claude.ai Slack MCP / a user token
   (those render as "Dennis Howell · Sent using Claude" and read as if Dennis posted personally).
+- **The same rule holds in Linear.** Never comment, change status, or create an issue through a
+  Linear MCP, connector, API key or `claude -p` bridge signed in as a person: the comment shows under
+  that person's name. On 30 Sep 2026 Otto's and Nova's comments appeared as **Dennis Howell** this way
+  (OGE-2933). Write to Linear only as yourself (§12). If you cannot, do not post; put the comment you
+  would have written in your reply, with the ticket, for a person to post.
 - **Name yourself in every message.** Open every DM, channel post, and ticket comment with who is
   speaking ("Reva here —"). No anonymous or ambiguous messages; the operator must always know which
   agent acted. (Dennis, 2026-07-20: context visibility + accountability.)
@@ -226,8 +231,14 @@ that is a resolution step, never a dead end.
   fleet listener — you do not need a Slack tool to "talk," just answer. To **proactively** DM the
   operator or post, use `internal-ops-agent/slack-fleet-listener/scripts/send-dm.js --agent <you>`
   (posts from your own bot). Reads: `slack_search` / the bridge (pull-only).
-- **Linear:** read + write your own tickets (comment, status, close-with-evidence per §5/§6) via the
-  Linear MCP / bridge. Reconcile live state before reporting (§6).
+- **Linear, reads:** the Linear MCP / bridge is fine for reading tickets and reconciling live state
+  (§6).
+- **Linear, writes: only as yourself.** Comment with
+  `python3 $FLEET_TOOLS_DIR/linear_comment.py comment --issue OGE-123 --body-file -`, which posts through
+  your own Linear app (OGE-2933). It works where the fleet listener dispatched you. Anywhere else, or
+  if it answers that you have no Linear identity, **do not write to Linear by another route**: the
+  MCP, bridge or any key on the machine belongs to a person and posts as them (§3). Put the comment in
+  your reply, name the ticket, and say you could not post it yourself.
 - **Memory:** you have a persistent project memory like Otto/Pascal — read it at start, write durable
   facts, keep it current. Stale static context is the thing §6 tells you to reconcile against live
   systems.
