@@ -34,8 +34,10 @@ pip install 'ogentic-shield[server]'      # + FastAPI HTTP surface
 pip install 'ogentic-shield[all]'         # everything
 ```
 
-> Layer 1 + 2 require the spaCy `en_core_web_lg` model:
-> `python -m spacy download en_core_web_lg`
+> Layer 1 + 2 require the spaCy `en_core_web_lg` model. Install it once with
+> `ogentic-shield models download` (or `python -m spacy download en_core_web_lg`).
+> Analysis never downloads models: a missing model exits with code 3 and an
+> actionable message on stderr.
 
 ## 30-second example
 

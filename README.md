@@ -170,8 +170,10 @@ All `ogentic-*` projects are Apache 2.0 licensed.
 
 ```bash
 pip install ogentic-shield
-python -m spacy download en_core_web_lg
+ogentic-shield models download   # one-time: spaCy en_core_web_lg (~400 MB)
 ```
+
+The model download is an explicit setup step. Analysis never downloads anything: if the model is missing, analysis exits with code `3` and prints the install command on stderr, so stdout only ever carries the output you asked for. (`python -m spacy download en_core_web_lg` works too. For the smaller `en_core_web_sm`, run `ogentic-shield models download --model en_core_web_sm`.)
 
 ```python
 from ogentic_shield import Shield
@@ -227,6 +229,7 @@ Each profile adds a set of recognizers, rules, and scoring weights for a specifi
 | Court Filing | `COURT_FILING` | "motion to dismiss", "summary judgment", "deposition" |
 | Bates Number | `BATES_NUMBER` | "BATES 000123", "DOC-2026-0042" |
 | Executive Name | `EXECUTIVE_NAME` | "CEO Williams", "General Counsel Martinez" |
+| SSN | `SSN` | "SSN 412-71-3359", "412-71-3359" (shared with `shield-therapy`) |
 
 **Scoring weights**: PRIVILEGE: 30, PII: 15, CONFIDENTIAL: 10
 
@@ -261,8 +264,11 @@ Each profile adds a set of recognizers, rules, and scoring weights for a specifi
 | Distribution Restriction | `DISTRIBUTION_RESTRICTION` | "do not distribute", "internal use only" |
 | Insider Marker | `INSIDER_MARKER` | "insider trading", "blackout period", "restricted list" |
 | Carry Terms | `CARRY_TERMS` | "20% carry", "hurdle rate", "preferred return" |
+| SSN | `SSN` | "SSN 412-71-3359", "412-71-3359" (shared with `shield-therapy`) |
 
 **Scoring weights**: MNPI: 30, PII: 12, CONFIDENTIAL: 10
+
+Every profile also requests Presidio's general PII types: `PERSON`, `EMAIL_ADDRESS`, `PHONE_NUMBER` and `US_SSN`.
 
 ### Scoring & Routing
 
@@ -331,7 +337,7 @@ ogentic-shield analyze "privileged and confidential" \
 
 # Analyze from file
 ogentic-shield analyze --file memo.txt \
-  --profiles shield-legal shield-finance
+  --profiles shield-legal --profiles shield-finance
 
 # Pipe from stdin
 cat brief.txt | ogentic-shield analyze --profiles shield-legal
@@ -346,6 +352,10 @@ ogentic-shield profiles list
 
 # Show profile details
 ogentic-shield profiles show shield-legal
+
+# One-time model setup (analysis never downloads models)
+ogentic-shield models download
+ogentic-shield models download --model en_core_web_sm
 
 # Version
 ogentic-shield --version

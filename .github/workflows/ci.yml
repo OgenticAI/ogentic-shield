@@ -43,10 +43,14 @@ jobs:
         # Editable install with the [dev] extras: pytest + ruff + mypy.
         run: pip install -e ".[dev]"
 
-      - name: Download spaCy en_core_web_lg model
-        # Required by Layer 1 (presidio NER recognizer). Cached by the
-        # spaCy step above when pip's cache key matches.
-        run: python -m spacy download en_core_web_lg
+      - name: Download spaCy models
+        # Required by Layer 1 (presidio NER recognizer). Shield never downloads
+        # models at analysis time (0.6.2), so every model the tests load must be
+        # installed here: lg is the default, sm is used by test_ner_model_config.
+        # Uses the documented setup command so CI exercises it.
+        run: |
+          ogentic-shield models download --model en_core_web_lg
+          ogentic-shield models download --model en_core_web_sm
 
       - name: Ruff lint
         run: ruff check src/ tests/
