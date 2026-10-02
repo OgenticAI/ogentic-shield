@@ -52,7 +52,7 @@ result = shield.analyze(
 )
 print(result.score)                  # 0..100 sensitivity score
 print(result.category_groups_found)  # {CategoryGroup.PRIVILEGE}
-print(result.routing_suggestion)     # "local_only"
+print(result.routing_suggestion)     # LOCAL_ONLY
 
 # Document-level redaction (v0.4.0+)
 redacted = shield.redact_document("memo.txt")

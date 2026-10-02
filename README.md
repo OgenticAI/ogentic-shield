@@ -185,8 +185,8 @@ result = shield.analyze(
     "regarding the SEC investigation, this is privileged and confidential."
 )
 
-print(result.score)               # 94
-print(result.sensitivity_level)   # CRITICAL
+print(result.score)               # 100
+print(result.sensitivity_level.value)  # CRITICAL
 print(result.routing_suggestion)  # LOCAL_ONLY
 print(result.entities[0].category)  # COUNSEL_COMMUNICATION
 ```
