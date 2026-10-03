@@ -377,3 +377,212 @@ class UsStreetAddressRecognizer(PatternRecognizer):
             context=self.CONTEXT_WORDS,
             supported_language="en",
         )
+
+
+# ── Labelled identifiers ────────────────────────────────────────────────
+#
+# Each of these finds a value by the label written in front of it ("account
+# number", "date of birth", "passport"), because the values alone (a run of
+# digits, a date) are far too common to flag on sight. The label sits in a
+# lookbehind, so only the value is boxed. Presidio compiles patterns with the
+# ``regex`` module, which allows variable-length lookbehind.
+
+_MONTH = (
+    r"(?:January|February|March|April|May|June|July|August|September|October|"
+    r"November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.?"
+)
+
+
+class DateOfBirthRecognizer(PatternRecognizer):
+    """A date of birth, found by its label: "date of birth", "DOB", "born"."""
+
+    PATTERNS = [
+        Pattern(
+            name="dob_labelled",
+            regex=(
+                r"(?<=\b(?:date\s+of\s+birth|DOB|born(?:\s+on)?)\s*(?::|is|as|was)?\s*)"
+                r"(?:\d{1,2}\s+" + _MONTH + r"\s+\d{4}"
+                r"|" + _MONTH + r"\s+\d{1,2},?\s+\d{4}"
+                r"|\d{1,2}/\d{1,2}/\d{2,4}"
+                r"|\d{4}-\d{2}-\d{2})"
+            ),
+            score=0.92,
+        ),
+    ]
+
+    def __init__(self):
+        super().__init__(supported_entity="DATE_OF_BIRTH", patterns=self.PATTERNS, supported_language="en")
+
+
+class BankAccountRecognizer(PatternRecognizer):
+    """A bank account number, found by "account" / "acct" in front of it.
+
+    Routing numbers are not flagged: they identify a bank, are published, and
+    are not withheld.
+    """
+
+    PATTERNS = [
+        Pattern(
+            name="account_labelled",
+            regex=(
+                r"(?<=\b(?:account|acct\.?)(?:\s+(?:number|no\.?|#))?\s*(?::|is)?\s*)"
+                r"\d[\d\-]{4,19}\d\b"
+            ),
+            score=0.9,
+        ),
+        Pattern(
+            name="account_last_digits",
+            regex=r"(?<=\baccount\b[^.\n]{0,60}\bends\s+in\s+)\d{4}\b",
+            score=0.85,
+        ),
+    ]
+
+    def __init__(self):
+        super().__init__(supported_entity="US_BANK_NUMBER", patterns=self.PATTERNS, supported_language="en")
+
+
+class DriversLicenseRecognizer(PatternRecognizer):
+    """A driver's licence number, labelled "driver's license" or "<state> DL"."""
+
+    PATTERNS = [
+        Pattern(
+            name="drivers_license_labelled",
+            regex=(
+                r"(?<=\b(?:driver'?s\s+licen[sc]e(?:\s+(?:number|no\.?|is))?|(?-i:[A-Z]{2})\s+DL)\s*:?\s*)"
+                r"(?-i:[A-Z])?-?\d(?:[\d\-]| (?=\d)){4,24}"
+            ),
+            score=0.9,
+        ),
+    ]
+
+    def __init__(self):
+        super().__init__(supported_entity="US_DRIVER_LICENSE", patterns=self.PATTERNS, supported_language="en")
+
+
+class PassportRecognizer(PatternRecognizer):
+    """A passport number, labelled "passport"."""
+
+    PATTERNS = [
+        Pattern(
+            name="passport_labelled",
+            regex=r"(?<=\bpassport(?:\s+(?:number|no\.?|#))?\s*:?\s*)(?-i:[A-Z])?\d{8,9}\b",
+            score=0.9,
+        ),
+    ]
+
+    def __init__(self):
+        super().__init__(supported_entity="US_PASSPORT", patterns=self.PATTERNS, supported_language="en")
+
+
+class EmployerIdRecognizer(PatternRecognizer):
+    """A federal Employer Identification Number, labelled "EIN" or "Employer ID"."""
+
+    PATTERNS = [
+        Pattern(
+            name="ein_labelled",
+            regex=(
+                r"(?<=\b(?:EIN|Employer\s+ID(?:entification)?(?:\s+Number)?(?:\s*\(EIN\))?|Tax\s+ID)\s*:?\s*)"
+                r"\d{2}-\d{7}\b"
+            ),
+            score=0.92,
+        ),
+    ]
+
+    def __init__(self):
+        super().__init__(supported_entity="US_EIN", patterns=self.PATTERNS, supported_language="en")
+
+
+class RecordNumberRecognizer(PatternRecognizer):
+    """Numbers that identify a person's records: medical record, claim, employee."""
+
+    _VALUE = r"(?-i:[A-Z0-9])[A-Z0-9\-]{2,30}(?-i:[A-Z0-9])"
+
+    PATTERNS = [
+        Pattern(
+            name="medical_record_number",
+            regex=r"(?<=\bmedical\s+record\s+(?:number|no\.?|#)\s*:?\s*)" + _VALUE,
+            score=0.92,
+        ),
+    ]
+
+    def __init__(self):
+        super().__init__(supported_entity="MEDICAL_RECORD_NUMBER", patterns=self.PATTERNS, supported_language="en")
+
+
+class ClaimNumberRecognizer(PatternRecognizer):
+    """A benefits or insurance claim number, labelled "claim number"."""
+
+    PATTERNS = [
+        Pattern(
+            name="claim_number",
+            regex=r"(?<=\bclaim\s+(?:number|no\.?|#)\s*:?\s*)(?-i:[A-Z0-9])[A-Z0-9\-]{3,30}(?-i:[A-Z0-9])",
+            score=0.9,
+        ),
+    ]
+
+    def __init__(self):
+        super().__init__(supported_entity="CLAIM_NUMBER", patterns=self.PATTERNS, supported_language="en")
+
+
+class EmployeeIdRecognizer(PatternRecognizer):
+    """An employee identification number, labelled "employee ID"."""
+
+    PATTERNS = [
+        Pattern(
+            name="employee_id",
+            regex=r"(?<=\bemployee\s+(?:ID|identification|number|no\.?)\s*:?\s*)(?-i:[A-Z0-9])[A-Z0-9\-]{3,20}(?-i:[A-Z0-9])",
+            score=0.9,
+        ),
+    ]
+
+    def __init__(self):
+        super().__init__(supported_entity="EMPLOYEE_ID", patterns=self.PATTERNS, supported_language="en")
+
+
+class CommercialPricingRecognizer(PatternRecognizer):
+    """Prices, rates and margins in a commercial context: (b)(4) candidates.
+
+    A dollar amount alone is not flagged (settlements, overpayments and grant
+    totals are routinely released). The base score sits below the reporting
+    threshold, and only Presidio's context boost from words such as "bid",
+    "rate", "margin" or "quote" nearby lifts it over.
+    """
+
+    PATTERNS = [
+        Pattern(
+            name="dollar_amount",
+            regex=r"\$\d{1,3}(?:,\d{3})*(?:\.\d{2})?(?:\s+(?:million|per\s+(?:hour|unit|day)))?",
+            score=0.3,
+        ),
+        Pattern(
+            name="percentage",
+            regex=r"\b\d{1,2}(?:\.\d+)?\s*(?:percent|%)",
+            score=0.3,
+        ),
+    ]
+
+    CONTEXT_WORDS = [
+        "bid",
+        "bids",
+        "offer",
+        "rate",
+        "rates",
+        "margin",
+        "pricing",
+        "price",
+        "quote",
+        "quoted",
+        "proprietary",
+        "labor",
+        "material",
+        "materials",
+        "bonding",
+    ]
+
+    def __init__(self):
+        super().__init__(
+            supported_entity="COMMERCIAL_PRICING",
+            patterns=self.PATTERNS,
+            context=self.CONTEXT_WORDS,
+            supported_language="en",
+        )

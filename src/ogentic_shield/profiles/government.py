@@ -17,13 +17,22 @@ import re
 
 from ogentic_shield.models import CategoryGroup, Rule, ShieldProfile
 from ogentic_shield.recognizers.government import (
+    BankAccountRecognizer,
+    ClaimNumberRecognizer,
     ClassificationMarkingRecognizer,
+    CommercialPricingRecognizer,
     ConfidentialSourceRecognizer,
     CuiMarkingRecognizer,
+    DateOfBirthRecognizer,
     DeliberativeMarkerRecognizer,
+    DriversLicenseRecognizer,
+    EmployeeIdRecognizer,
+    EmployerIdRecognizer,
     FoiaRequestNumberRecognizer,
     InvestigativeTechniqueRecognizer,
     LawEnforcementRecordRecognizer,
+    PassportRecognizer,
+    RecordNumberRecognizer,
     StatutoryExemptionRecognizer,
     UsStreetAddressRecognizer,
 )
@@ -57,6 +66,17 @@ RECOGNIZERS = [
     SsnRecognizer(),
     # A home address is a (b)(6) identifier; NER alone splits it
     UsStreetAddressRecognizer(),
+    # Identifiers found by their label: the bare values are too common
+    DateOfBirthRecognizer(),
+    BankAccountRecognizer(),
+    DriversLicenseRecognizer(),
+    PassportRecognizer(),
+    EmployerIdRecognizer(),
+    RecordNumberRecognizer(),
+    ClaimNumberRecognizer(),
+    EmployeeIdRecognizer(),
+    # (b)(4): prices and margins, only where commercial words surround them
+    CommercialPricingRecognizer(),
 ]
 
 RULES = [
