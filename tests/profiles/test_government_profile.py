@@ -6,7 +6,7 @@ from ogentic_shield import PROFILE_REDACT_CATEGORIES, Shield
 from ogentic_shield.profiles import get_profile, list_profiles
 
 FOIA_MEMO = """
-From: Marcus Elwood, Senior Analyst (marcus.elwood@usdoj.gov)
+From: Marcus Elwood, Senior Analyst (marcus.elwood@example.gov)
 Subject: Request 2024-FOIA-0881 — responsive material, matter 24-CV-1184
 
 Hannah Heppner submitted the complaint. Her SSN 412-71-3359 is on the intake form
