@@ -15,6 +15,7 @@ from ogentic_shield.recognizers.finance import (
     MaActivityRecognizer,
     MnpiMarkerRecognizer,
 )
+from ogentic_shield.recognizers.therapy import SsnRecognizer
 
 PROFILE_ID = "shield-finance"
 PROFILE_VERSION = "0.1.0"
@@ -30,6 +31,7 @@ RECOGNIZERS = [
     DistributionRestrictionRecognizer(),
     InsiderMarkerRecognizer(),
     CarryTermsRecognizer(),
+    SsnRecognizer(),  # same recognizer as shield-therapy: SSNs appear in any domain
 ]
 
 RULES = [

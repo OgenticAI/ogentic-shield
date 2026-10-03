@@ -67,6 +67,11 @@ DEFAULT_REDACT_CATEGORIES: list[str] = [
 PROFILE_REDACT_CATEGORIES: dict[str, list[str]] = {
     "shield-finance": list(DEFAULT_REDACT_CATEGORIES),
     "shield-legal":   list(DEFAULT_REDACT_CATEGORIES) + ["CaseNumber", "BatesNumber"],
+    # Government: identifiers only. The markers this profile adds — classification
+    # banners, CUI, deliberative and source references — say *why* a page is
+    # sensitive; blacking them out hides the reviewer's reasoning and protects
+    # nothing, and a CUI banner must survive onto the export.
+    "shield-gov":     list(DEFAULT_REDACT_CATEGORIES) + ["CaseNumber"],
     "shield-therapy": list(DEFAULT_REDACT_CATEGORIES) + [
         "DateOfBirth", "InsuranceId", "MedicalLicense",
     ],

@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.6.2] - Unreleased
+
+### Fixed
+
+- **SSNs are now detected under `shield-legal` and `shield-finance`.** Only `shield-therapy` (and `shield-therapy-pro`) registered `SsnRecognizer`, so an SSN in legal or financial text passed through with no entity. All built-in profiles now share the same `SsnRecognizer`, and Presidio's validated `US_SSN` recognizer is now requested for every profile (it catches unlabeled space-separated forms such as `412 71 3359`). Labeled and dashed SSNs surface as `SSN`; redaction already maps both types. Detection on the bundled benchmark corpora is unchanged.
+- **US phone numbers no longer need a context word.** Presidio's `PhoneRecognizer` scores 0.4 and relies on a context word to clear the 0.5 threshold, but its `call` context word is a spaCy stopword that Presidio filters out, so `call 415-555-0182 today` and `... or (415) 555-0182` were missed entirely. A new `UsPhoneRecognizer` scores 0.6 for numbers in a US phone layout (`415-555-0182`, `(415) 555-0182`, `415.555.0182`, optional `+1`) that `phonenumbers` validates. Bare 10-digit runs, SSNs, dates, ZIP+4 and prefixed IDs such as `INV-415-555-0182` are not matched; bare digit runs still need a context word as before.
+- **The CLI no longer corrupts its own output on first run.** With the spaCy model missing, Presidio installed `en_core_web_lg` (~400 MB) at analysis time and pip's progress went to stdout, so `--output json` was unparseable. Shield now never downloads models at runtime: a missing model raises `ModelNotInstalledError` (exported from `ogentic_shield`), and every CLI command exits with code `3` and an actionable message on stderr, leaving stdout empty. The guard covers `analyze`, `test-recognizer`, the MCP server and the HTTP service, which all build their analyzer through one function.
+- **Email detection no longer makes a network call.** Presidio's `EmailRecognizer` validated domains with tldextract's default extractor, which fetches the public suffix list over HTTPS on first use. Shield now swaps in `OfflineEmailRecognizer`, which uses tldextract's bundled snapshot with no remote URLs and no disk cache. Analysis is fully offline.
+
+### Added
+
+- **`ogentic-shield models download [--model NAME]`**, the explicit one-time setup step for the spaCy model (default `en_core_web_lg`). spaCy/pip progress goes to stderr. README and PyPI quickstarts use it.
+
+---
+
 ## [0.6.1] - 2026-07-23
 
 ### Fixed

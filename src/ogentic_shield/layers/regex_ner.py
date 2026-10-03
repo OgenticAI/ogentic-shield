@@ -5,20 +5,111 @@ from __future__ import annotations
 import logging
 import time
 from functools import lru_cache
+from pathlib import Path
 
-from presidio_analyzer import AnalyzerEngine
+import phonenumbers
+import spacy.util
+import tldextract
+from presidio_analyzer import AnalyzerEngine, Pattern, PatternRecognizer
 from presidio_analyzer.nlp_engine import NlpEngineProvider
+from presidio_analyzer.predefined_recognizers import EmailRecognizer
 
 from ogentic_shield.models import (
     CATEGORY_GROUP_PRIORITY,
     CategoryGroup,
     DetectedEntity,
     DetectionLayer,
+    ModelNotInstalledError,
     ShieldProfile,
 )
 from ogentic_shield.profiles import get_profile
 
 logger = logging.getLogger("ogentic_shield.layers.regex_ner")
+
+# Presidio's EmailRecognizer validates domains with the module-level
+# ``tldextract.extract``, which fetches the public suffix list over HTTPS on
+# first use. Shield is on-device: use tldextract's bundled snapshot, with no
+# remote URLs and no disk cache.
+_OFFLINE_TLD_EXTRACT = tldextract.TLDExtract(cache_dir=None, suffix_list_urls=())
+
+
+class OfflineEmailRecognizer(EmailRecognizer):
+    """Presidio's EmailRecognizer with network-free domain validation."""
+
+    def __init__(self) -> None:
+        # Keep Presidio's name so recognizer metadata is unchanged.
+        super().__init__(name="EmailRecognizer")
+
+    def validate_result(self, pattern_text: str) -> bool:
+        return _OFFLINE_TLD_EXTRACT(pattern_text).fqdn != ""
+
+
+class UsPhoneRecognizer(PatternRecognizer):
+    """US numbers written in a phone layout, detected without context words.
+
+    Presidio's PhoneRecognizer scores 0.4 and needs a context word to clear
+    the 0.5 default threshold, but its "call" context word is a spaCy
+    stopword that Presidio filters out, so "call 415-555-0182" and
+    "... or (415) 555-0182" were dropped. Requiring the 3-3-4 separator
+    layout (optional "(area)" and "+1") plus phonenumbers validation keeps
+    SSNs (3-2-4), dates, invalid area codes and bare digit runs out.
+    """
+
+    PATTERNS = [
+        Pattern(
+            name="us_phone_formatted",
+            regex=r"(?<![\w-])(?:\+1[ .-]?)?(?:\(\d{3}\) ?|\d{3}[.-])\d{3}[.-]\d{4}(?![\w-])",
+            score=0.6,
+        ),
+    ]
+
+    def __init__(self) -> None:
+        super().__init__(supported_entity="PHONE_NUMBER", patterns=self.PATTERNS, supported_language="en")
+
+    def invalidate_result(self, pattern_text: str) -> bool:
+        try:
+            return not phonenumbers.is_valid_number(phonenumbers.parse(pattern_text, "US"))
+        except phonenumbers.NumberParseException:
+            return True
+
+
+def ensure_model_installed(ner_model: str) -> None:
+    """Raise :class:`ModelNotInstalledError` if ``ner_model`` is missing.
+
+    Presidio's spaCy engine would otherwise ``pip install`` the model at
+    runtime (~400 MB for ``en_core_web_lg``) and print the download progress
+    to stdout, corrupting machine-readable CLI output. Shield never downloads
+    models during analysis; setup is the explicit ``models download`` command.
+    """
+    if spacy.util.is_package(ner_model) or Path(ner_model).exists():
+        return
+    raise ModelNotInstalledError(
+        f"spaCy model '{ner_model}' is not installed. Shield does not download models "
+        f"at analysis time. Install it once with:\n"
+        f"  ogentic-shield models download --model {ner_model}\n"
+        f"or: python -m spacy download {ner_model}"
+    )
+
+
+def build_analyzer(ner_model: str) -> AnalyzerEngine:
+    """A Presidio analyzer that never touches the network.
+
+    Fails fast if the spaCy model is missing (no runtime download), swaps in
+    :class:`OfflineEmailRecognizer`, and adds :class:`UsPhoneRecognizer`.
+    Every analyzer Shield builds goes through here.
+    """
+    ensure_model_installed(ner_model)
+    provider = NlpEngineProvider(
+        nlp_configuration={
+            "nlp_engine_name": "spacy",
+            "models": [{"lang_code": "en", "model_name": ner_model}],
+        }
+    )
+    analyzer = AnalyzerEngine(nlp_engine=provider.create_engine())
+    analyzer.registry.remove_recognizer("EmailRecognizer")
+    analyzer.registry.add_recognizer(OfflineEmailRecognizer())
+    analyzer.registry.add_recognizer(UsPhoneRecognizer())
+    return analyzer
 
 
 @lru_cache(maxsize=8)
@@ -34,13 +125,7 @@ def _get_analyzer(ner_model: str, profile_ids: tuple[str, ...]) -> AnalyzerEngin
     Presidio itself recommends. ``AnalyzerEngine.analyze`` is stateless, so the
     shared engine is safe across the server's request threads.
     """
-    provider = NlpEngineProvider(
-        nlp_configuration={
-            "nlp_engine_name": "spacy",
-            "models": [{"lang_code": "en", "model_name": ner_model}],
-        }
-    )
-    analyzer = AnalyzerEngine(nlp_engine=provider.create_engine())
+    analyzer = build_analyzer(ner_model)
     for pid in profile_ids:
         for recognizer in get_profile(pid).recognizers:
             analyzer.registry.add_recognizer(recognizer)
@@ -168,7 +253,7 @@ def run_layer1(
     all_entity_types = set()
     for profile in profiles:
         all_entity_types.update(profile.supported_entities)
-    all_entity_types.update(["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS"])
+    all_entity_types.update(["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "US_SSN"])
 
     logger.debug("Running %d entity types against %d chars", len(all_entity_types), len(text))
 

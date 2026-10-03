@@ -148,6 +148,10 @@ class ConfigError(ShieldError):
     """Raised when config file is invalid."""
 
 
+class ModelNotInstalledError(ShieldError):
+    """Raised when the spaCy NER model is not installed (Shield never downloads at runtime)."""
+
+
 # Category group priority for overlap resolution
 CATEGORY_GROUP_PRIORITY = {
     CategoryGroup.PRIVILEGE: 5,

@@ -104,8 +104,9 @@ class TestShieldStaticMethods:
     def test_get_profile(self):
         profile = Shield.get_profile("shield-legal")
         assert profile.id == "shield-legal"
-        assert len(profile.recognizers) == 10
-        assert len(profile.supported_entities) == 10
+        assert len(profile.recognizers) == 11  # 10 legal + shared SsnRecognizer (0.6.2)
+        assert len(profile.supported_entities) == 11
+        assert "SSN" in profile.supported_entities
 
     def test_get_unknown_profile(self):
         from ogentic_shield.models import ProfileNotFoundError

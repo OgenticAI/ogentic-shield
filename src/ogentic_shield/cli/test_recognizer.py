@@ -48,6 +48,9 @@ from presidio_analyzer import AnalyzerEngine, PatternRecognizer
 from rich.console import Console
 from rich.table import Table
 
+from ogentic_shield.config import DEFAULT_NER_MODEL
+from ogentic_shield.layers.regex_ner import build_analyzer
+
 
 def _load_module(path: Path):
     """Import a Python file at ``path`` as a one-off module.
@@ -214,7 +217,7 @@ def test_recognizer(
 
     instances: list[PatternRecognizer] = [_instantiate(cls) for cls in classes]
 
-    analyzer = AnalyzerEngine()
+    analyzer = build_analyzer(DEFAULT_NER_MODEL)
     for inst in instances:
         analyzer.registry.add_recognizer(inst)
 
