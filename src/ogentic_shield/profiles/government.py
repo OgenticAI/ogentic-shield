@@ -25,6 +25,7 @@ from ogentic_shield.recognizers.government import (
     InvestigativeTechniqueRecognizer,
     LawEnforcementRecordRecognizer,
     StatutoryExemptionRecognizer,
+    UsStreetAddressRecognizer,
 )
 from ogentic_shield.recognizers.legal import (
     CaseNumberRecognizer,
@@ -54,6 +55,8 @@ RECOGNIZERS = [
     CaseNumberRecognizer(),
     # SSNs appear in any domain
     SsnRecognizer(),
+    # A home address is a (b)(6) identifier; NER alone splits it
+    UsStreetAddressRecognizer(),
 ]
 
 RULES = [
