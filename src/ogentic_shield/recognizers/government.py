@@ -333,3 +333,47 @@ class StatutoryExemptionRecognizer(PatternRecognizer):
             context=self.CONTEXT_WORDS,
             supported_language="en",
         )
+
+
+class UsStreetAddressRecognizer(PatternRecognizer):
+    """Detects a US street address: a house number, the street name and its suffix.
+
+    Without it the NER layer tags a street name such as "Larkmead Terrace" as a
+    PERSON and leaves the house number out, so a redaction box covers half an
+    address. The span here includes the number, so it is longer than the NER
+    span and wins the overlap.
+
+    Street-name words must be capitalised; Presidio matches case-insensitively,
+    so that is pinned with ``(?-i:...)``. That keeps "88 pages per Court order"
+    and similar prose from matching.
+    """
+
+    _SUFFIX = (
+        r"(?:Street|St|Avenue|Ave|Road|Rd|Lane|Ln|Drive|Dr|Boulevard|Blvd|Court|Ct|"
+        r"Terrace|Ter|Place|Pl|Way|Circle|Cir|Parkway|Pkwy|Highway|Hwy|Square|Sq|"
+        r"Trail|Trl|Pike|Row|Alley|Loop|Crescent)\.?"
+    )
+
+    PATTERNS = [
+        Pattern(
+            name="us_street_address",
+            regex=(
+                r"\b\d{1,6}[A-Z]?\s+"
+                r"(?:(?:N|S|E|W|NE|NW|SE|SW|North|South|East|West)\.?\s+)?"
+                r"(?-i:(?:[A-Z][A-Za-z'\-]+\s+){1,3}" + _SUFFIX + r")"
+                r"(?-i:\s+(?:N|S|E|W|NE|NW|SE|SW)\b\.?)?"
+                r"(?:,?\s+(?:Apt|Apartment|Suite|Ste|Unit|#)\.?\s*[\w\-]+)?\b"
+            ),
+            score=0.90,
+        ),
+    ]
+
+    CONTEXT_WORDS = ["address", "home", "residence", "lives", "resides", "mailing"]
+
+    def __init__(self):
+        super().__init__(
+            supported_entity="ADDRESS",
+            patterns=self.PATTERNS,
+            context=self.CONTEXT_WORDS,
+            supported_language="en",
+        )

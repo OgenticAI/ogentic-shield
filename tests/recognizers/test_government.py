@@ -208,3 +208,23 @@ class TestStatutoryExemptionRecognizer:
         """A bare "(b)(2)" is a contract clause as often as a FOIA exemption."""
         result = gov_shield.analyze("See clause (b)(2) of the appendix for the schedule.")
         assert categories(result, "STATUTORY_EXEMPTION") == []
+
+
+class TestUsStreetAddressRecognizer:
+    """Tests for ADDRESS detection (US street addresses)."""
+
+    def test_whole_address_wins_over_ner_person(self, gov_shield):
+        # NER alone tags the street name as a PERSON and drops the number.
+        result = gov_shield.analyze("a home address at 88 Larkmead Terrace, Reston, Virginia.")
+        assert [e.text for e in categories(result, "ADDRESS")] == ["88 Larkmead Terrace"]
+        assert not [e for e in categories(result, "PERSON") if "Larkmead" in e.text]
+
+    def test_directionals_and_unit(self, gov_shield):
+        result = gov_shield.analyze("She moved to 1600 Pennsylvania Ave NW, Apt 4B last year.")
+        assert [e.text for e in categories(result, "ADDRESS")] == ["1600 Pennsylvania Ave NW, Apt 4B"]
+        result = gov_shield.analyze("Mail it to 42 W. Elm Street.")
+        assert [e.text for e in categories(result, "ADDRESS")] == ["42 W. Elm Street"]
+
+    def test_prose_with_numbers_is_not_an_address(self, gov_shield):
+        result = gov_shield.analyze("We reviewed 88 pages per court order and replied 12 days later.")
+        assert categories(result, "ADDRESS") == []
