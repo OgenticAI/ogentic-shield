@@ -143,6 +143,8 @@ _ENTITY_CATEGORY_GROUP: dict[str, CategoryGroup] = {
     "LITIGATION_MARKER": CategoryGroup.PRIVILEGE,
     "COURT_FILING": CategoryGroup.CONFIDENTIAL,
     "BATES_NUMBER": CategoryGroup.CONFIDENTIAL,
+    # Government
+    "COMMERCIAL_PRICING": CategoryGroup.CONFIDENTIAL,
     "EXECUTIVE_NAME": CategoryGroup.PII,
     # Therapy
     "PATIENT_NAME": CategoryGroup.PHI,
