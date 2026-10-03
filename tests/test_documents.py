@@ -25,7 +25,7 @@ from ogentic_shield import (
     DocumentRedactionResult,
     Shield,
     UnsupportedDocumentFormatError,
-    unredact_text,
+    unredact_simple_text,
 )
 from ogentic_shield.documents import (
     DEFAULT_CHUNK_CHARS,
@@ -340,10 +340,10 @@ class TestShieldAnalyzeDocument:
         assert offsets == sorted(offsets)
 
 
-# ─── Shield.redact_document end-to-end (OGE-792) ────────────────────────────
+# ─── Shield.redact_simple_document end-to-end (OGE-792) ────────────────────────────
 
 
-class TestShieldRedactDocument:
+class TestShieldRedactSimpleDocument:
     """End-to-end through the redaction pipeline.
 
     Same shape as ``TestShieldAnalyzeDocument`` — one Presidio cold start
@@ -356,7 +356,7 @@ class TestShieldRedactDocument:
         return Shield(profiles=["shield-legal"])
 
     def test_returns_document_redaction_result(self, shield):
-        result = shield.redact_document(LEGAL_MEMO)
+        result = shield.redact_simple_document(LEGAL_MEMO)
         assert isinstance(result, DocumentRedactionResult)
         assert result.format == "text"
         assert result.path == str(LEGAL_MEMO)
@@ -373,7 +373,7 @@ class TestShieldRedactDocument:
         assert result.mapping.tokens
 
     def test_markdown_is_redacted(self, shield):
-        result = shield.redact_document(WELLNESS_BLOG)
+        result = shield.redact_simple_document(WELLNESS_BLOG)
         assert result.format == "markdown"
         # Wellness blog is a true negative for the legal profile — no
         # entities matching the default redaction categories. Redacted
@@ -382,7 +382,7 @@ class TestShieldRedactDocument:
         assert not result.mapping.tokens
 
     def test_unredact_round_trip(self, shield):
-        result = shield.redact_document(LEGAL_MEMO)
+        result = shield.redact_simple_document(LEGAL_MEMO)
         # Mirror the audit-row privacy lock — no original entity text
         # leaks into ``redacted_text``. We sample the mapping's originals
         # and assert each is absent from the redacted output. This is the
@@ -392,7 +392,7 @@ class TestShieldRedactDocument:
                 f"redacted_text still contains original entity {original!r}"
             )
         # And the inverse: unredact restores the original byte-for-byte.
-        restored = unredact_text(result.redacted_text, result.mapping)
+        restored = unredact_simple_text(result.redacted_text, result.mapping)
         assert restored == result.original_text
 
     def test_unsupported_format_raises_with_install_hint(
@@ -401,14 +401,14 @@ class TestShieldRedactDocument:
         pdf_like = tmp_path / "term_sheet.pdf"
         pdf_like.write_bytes(b"%PDF-1.4 fake")
         with pytest.raises(UnsupportedDocumentFormatError) as exc:
-            shield.redact_document(pdf_like)
+            shield.redact_simple_document(pdf_like)
         # Same dispatcher as analyze_document → same hint.
         assert exc.value.ext == "pdf"
         assert "ogentic-shield[documents]" in (exc.value.install_hint or "")
 
     def test_missing_file_raises_filenotfound(self, shield, tmp_path: Path):
         with pytest.raises(FileNotFoundError):
-            shield.redact_document(tmp_path / "nope.txt")
+            shield.redact_simple_document(tmp_path / "nope.txt")
 
     def test_redact_categories_override_is_honored(
         self, shield, tmp_path: Path
@@ -420,7 +420,7 @@ class TestShieldRedactDocument:
         doc = tmp_path / "tiny.txt"
         doc.write_text("Email me at alice@example.com about the merger.")
         # Override to a category that won't match an email address.
-        result = shield.redact_document(
+        result = shield.redact_simple_document(
             doc, redact_categories=["NonexistentCategory"]
         )
         assert result.redacted_text == result.original_text

@@ -84,20 +84,20 @@ class TestAnalyze:
 
 class TestRedactUnredact:
     async def test_redact_round_trip(self, finance_async_shield: AsyncShield):
-        redacted, mapping = await finance_async_shield.redact(FINANCE_TEXT)
+        redacted, mapping = await finance_async_shield.redact_simple_text(FINANCE_TEXT)
         assert "Goldman Sachs" not in redacted
         # Money/percentages survive — same redaction-vs-detection split.
         assert "$47/share" in redacted
-        restored = await AsyncShield.unredact(redacted, mapping)
+        restored = await AsyncShield.unredact_simple(redacted, mapping)
         assert restored == FINANCE_TEXT
 
     async def test_unredact_skips_missing_tokens(
         self, finance_async_shield: AsyncShield
     ):
-        redacted, mapping = await finance_async_shield.redact(FINANCE_TEXT)
+        redacted, mapping = await finance_async_shield.redact_simple_text(FINANCE_TEXT)
         first_token = next(iter(mapping.tokens))
         rewritten = redacted.replace(first_token, "[model-rewrote-this]")
-        restored = await AsyncShield.unredact(rewritten, mapping)
+        restored = await AsyncShield.unredact_simple(rewritten, mapping)
         # The dropped token's original value must NOT come back.
         assert mapping.tokens[first_token] not in restored
 
