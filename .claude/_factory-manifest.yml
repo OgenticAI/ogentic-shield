@@ -4,9 +4,9 @@
 manifest_version: 1
 factory_source: "https://github.com/OgenticAI/agent-factory"
 
-synced_kit_sha: "dcbf2da388049912eda76af17b877d5308f21a28"
-synced_kit_hash: "d66ac6c82013f0983c2aad7d8160fdfb51219838cc4267c0d617dbb30295800b"
-synced_at: "2026-10-02T19:34:31.041863+00:00"
+synced_kit_sha: "26af8c69689005a2fcfe378e2537561e9c01046c"
+synced_kit_hash: "667b1f82fdd3bcc8adf0c015a8c89465ed89830ca439872c0bfa32cb67b1e296"
+synced_at: "2026-10-09T12:33:44.513544+00:00"
 
 files:
   - path: .claude/CLAUDE-FACTORY.md
@@ -60,11 +60,11 @@ files:
   - path: .claude/core-canon.md
     content_sha256: 22f7f4bddf0297df5a8645929437aaeaf59f91f2078935767ebaad47f7d5bdca
   - path: .claude/hooks/pre-commit
-    content_sha256: 4620e26e07112561a3c0d8c2225c72f7f6c2dad55bc1028e4b995c4f41b1ea6f
+    content_sha256: f0e7dccd6da2c33df08bcc02f08dfdaca0a2c2d208c0423214c6aa5fa0565ac6
   - path: .claude/hooks/pre-push
     content_sha256: e36ac616e6f0a26b8e5ebd8483f99751a43cbf99ef2feb70f0cf4412a93309ac
   - path: .claude/hooks/tests/test-pre-commit.sh
-    content_sha256: 15e7fdf20bab3b6210d9342ddbf1ba39395a189e9b2c4477c9f12f99fcf6d092
+    content_sha256: 9dbdb5df87f151d435466781590e599fb19e42c96de582ae6b867554a3491851
   - path: .claude/registry/repos.yml.template
     content_sha256: af07cd3d9e0fc45469325d6426cd3757eaa4df8052d50d5aef128b2afe81c951
   - path: .claude/runbooks/agent-access-resolution.md
