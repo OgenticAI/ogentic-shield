@@ -128,6 +128,7 @@ class ShieldProfile:
     # `30.0` instead of `30`.
     scoring_weights: Mapping[CategoryGroup, float]
     supported_entities: list[str]
+    ner_person_blocklist: frozenset[str] = field(default_factory=frozenset)
 
 
 # Exceptions
