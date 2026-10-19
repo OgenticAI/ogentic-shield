@@ -141,3 +141,41 @@ measure progress.
    }
    ```
 3. Document targets in this README.
+
+## Sotto Vertical Evaluation
+
+The `run_sotto_vertical_eval.py` script compares ogentic-shield with Sotto vertical
+tier models against open-weights baselines on an expanded evaluation corpus:
+
+```bash
+# Generate expanded corpus (200+ examples per domain)
+python benchmarks/generate_eval_corpus.py
+
+# Run evaluation (requires Ollama with models pulled)
+python benchmarks/run_sotto_vertical_eval.py
+
+# Write results to files
+python benchmarks/run_sotto_vertical_eval.py \
+  --json results.json \
+  --md benchmarks/SOTTO_VERTICAL_EVAL.md
+
+# Use custom Sotto model
+python benchmarks/run_sotto_vertical_eval.py \
+  --sotto-model granite3.1-moe:3b
+```
+
+### Features
+- **10-fold stratified cross-validation** for robust metrics
+- **Bootstrap 95% confidence intervals** on all F1 scores
+- **Zero-shot prompting** with consistent format across models
+- **Automatic corpus generation** if not present
+- **Skip-on-missing** for models not pulled locally
+
+### Baselines
+- Llama 3.1 8B
+- Mistral 7B / 7B-Instruct
+- Qwen 2.5 7B / 7B-Instruct
+- Granite 3.1 8B
+- Sotto vertical tier (granite3.1-moe:1b or custom)
+
+See `benchmarks/SOTTO_VERTICAL_EVAL.md` for full methodology and reproducibility instructions.
