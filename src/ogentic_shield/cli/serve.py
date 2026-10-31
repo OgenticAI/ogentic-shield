@@ -23,9 +23,8 @@ import click
     "--profile",
     "profiles",
     multiple=True,
-    help="Shield profile id to load (repeatable). "
-    "Choices: shield-legal, shield-therapy, shield-finance. "
-    "Defaults to shield-legal.",
+    help="Shield profile id to load (repeatable); `ogentic-shield profiles list` "
+    "shows the built-in ones. Defaults to shield-legal.",
 )
 @click.option(
     "--host",
