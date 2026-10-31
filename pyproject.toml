@@ -35,7 +35,8 @@ dependencies = [
 
 [project.optional-dependencies]
 server = ["fastapi>=0.100", "uvicorn>=0.20"]
-mcp = ["mcp>=1.0"]
+# The server is written against mcp 1.x: 2.x renamed the FastMCP class it imports.
+mcp = ["mcp>=1.0,<2"]
 llm = ["ollama>=0.4"]
 # OGE-398: document analysis (PDF / DOCX / XLSX / EML / MSG / HTML).
 # Phase 1 implementation handles only the plain-text family (.txt, .md,

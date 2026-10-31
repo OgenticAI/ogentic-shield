@@ -11,7 +11,8 @@ from ogentic_shield.profiles.therapy_pro import create_profile as create_therapy
 PROFILE_REGISTRY: dict[str, ShieldProfile] = {}
 
 
-def _register_builtin_profiles() -> None:
+def _register_builtin_profiles() -> tuple[str, ...]:
+    ids: list[str] = []
     for factory in (
         create_legal_profile,
         create_government_profile,
@@ -21,9 +22,13 @@ def _register_builtin_profiles() -> None:
     ):
         profile = factory()
         PROFILE_REGISTRY[profile.id] = profile
+        ids.append(profile.id)
+    return tuple(ids)
 
 
-_register_builtin_profiles()
+# The profiles that ship with the package. Profiles registered later, from YAML
+# or code, join PROFILE_REGISTRY but not this.
+BUILTIN_PROFILE_IDS: tuple[str, ...] = _register_builtin_profiles()
 
 
 def get_profile(profile_id: str) -> ShieldProfile:
@@ -57,6 +62,7 @@ def register_profile(profile: ShieldProfile) -> None:
 
 
 __all__ = [
+    "BUILTIN_PROFILE_IDS",
     "PROFILE_REGISTRY",
     "get_profile",
     "list_profiles",

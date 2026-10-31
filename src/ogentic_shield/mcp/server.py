@@ -38,19 +38,15 @@ from ogentic_shield.models import (
     DetectedEntity,
     RedactionMapping,
 )
-from ogentic_shield.profiles import list_profiles
+from ogentic_shield.profiles import BUILTIN_PROFILE_IDS, list_profiles
 
 logger = logging.getLogger("ogentic_shield.mcp")
 
-# The set of profiles the server is willing to load on demand. Locked down so
-# a hostile client can't ask the server to load an attacker-controlled YAML by
-# name. shield-therapy-pro is the OGE-355 extension of shield-therapy.
-_KNOWN_PROFILES: set[str] = {
-    "shield-legal",
-    "shield-therapy",
-    "shield-therapy-pro",
-    "shield-finance",
-}
+# The profiles a caller may pick per call: the built-in ones. A hostile client
+# can't ask for an attacker-controlled YAML, or any profile registered at run
+# time, by name; and a new built-in is accepted without a second edit
+# (shield-gov was refused while this was a hand-kept copy).
+_KNOWN_PROFILES: frozenset[str] = frozenset(BUILTIN_PROFILE_IDS)
 
 # Default tool-input shape for the model: only the text we're classifying needs
 # to be required. Profile + flags are optional with sensible defaults.
@@ -413,7 +409,8 @@ def main() -> None:
         "--profile",
         action="append",
         dest="profiles",
-        help="Shield profile to load (repeatable). Default: shield-legal.",
+        help="Shield profile to load (repeatable); `ogentic-shield profiles list` "
+        "shows the built-in ones. Default: shield-legal.",
     )
     parser.add_argument("--host", default="127.0.0.1", help="SSE bind host")
     parser.add_argument("--port", type=int, default=8765, help="SSE bind port")

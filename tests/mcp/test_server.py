@@ -33,6 +33,11 @@ from ogentic_shield.models import (  # noqa: E402
     DetectedEntity,
     DetectionLayer,
 )
+from ogentic_shield.profiles import (  # noqa: E402
+    BUILTIN_PROFILE_IDS,
+    PROFILE_REGISTRY,
+    get_profile,
+)
 
 # ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -55,6 +60,19 @@ class TestResolveProfile:
     def test_error_message_lists_known_profiles(self):
         with pytest.raises(ValueError, match="shield-legal.*shield-therapy"):
             _resolve_profile("bogus", "shield-legal")
+
+    def test_accepts_shield_gov(self):
+        # Refused per call while the accepted profiles were a hand-kept list.
+        assert _resolve_profile("shield-gov", "shield-legal") == "shield-gov"
+
+    def test_accepts_every_builtin_profile(self):
+        for profile_id in BUILTIN_PROFILE_IDS:
+            assert _resolve_profile(profile_id, "shield-legal") == profile_id
+
+    def test_refuses_a_profile_registered_after_the_server_loaded(self, monkeypatch):
+        monkeypatch.setitem(PROFILE_REGISTRY, "shield-late", get_profile("shield-legal"))
+        with pytest.raises(ValueError, match="Unknown profile"):
+            _resolve_profile("shield-late", "shield-legal")
 
 
 # ─── Entity serialization (privacy invariant) ────────────────────────────────

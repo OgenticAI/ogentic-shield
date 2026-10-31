@@ -40,8 +40,10 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install ogentic-shield + dev deps
-        # Editable install with the [dev] extras: pytest + ruff + mypy.
-        run: pip install -e ".[dev]"
+        # Editable install with the [dev] extras (pytest + ruff + mypy) and
+        # [mcp], so tests/mcp runs instead of skipping: without it, mcp 2.x
+        # breaking the server went unnoticed.
+        run: pip install -e ".[dev,mcp]"
 
       - name: Download spaCy models
         # Required by Layer 1 (presidio NER recognizer). Shield never downloads
