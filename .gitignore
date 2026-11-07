@@ -33,3 +33,6 @@ Thumbs.db
 
 # spaCy models (large, installed at runtime)
 en_core_web_lg*/
+
+# Benchmark eval corpus (generated, not source)
+benchmarks/eval_corpus/
