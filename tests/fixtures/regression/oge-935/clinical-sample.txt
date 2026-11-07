@@ -1,0 +1,22 @@
+Patient: Robin Example
+DOB: 01/15/1985
+
+Chief Complaint:
+Patient reports increased anxiety and difficulty sleeping for the past two weeks.
+
+Session Notes:
+Robin Example presented for their third therapy session today. Patient described feeling overwhelmed with work stress and family obligations. Reports difficulty falling asleep most nights, averaging 4-5 hours of sleep.
+
+Diagnosis: F41.1 (Generalized Anxiety Disorder)
+
+Treatment Plan:
+- Continue weekly therapy sessions
+- Prescribed Sertraline 50mg daily by Dr. Casey Imaginary, LCSW
+- Recommended sleep hygiene practices
+- Referred to Dr. John Smith, MD for medication management
+
+Provider: Dr. Casey Imaginary, LCSW
+Next appointment: 02/15/2024
+
+Emergency Contact: Jane Example (spouse)
+Insurance ID: BCBS-12345678
